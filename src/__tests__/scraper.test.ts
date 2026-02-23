@@ -6,19 +6,13 @@ import path from 'node:path'
 import os from 'node:os'
 import type { FieldMappings } from '../types.js'
 
-vi.mock('../fetcher.js', () => ({
-  fetchAndClean: vi.fn(),
-}))
-
 vi.mock('../llm.js', () => ({
   extractWithTools: vi.fn(),
 }))
 
-import { fetchAndClean } from '../fetcher.js'
 import { extractWithTools } from '../llm.js'
 import { Scraper } from '../scraper.js'
 
-const mockFetch = vi.mocked(fetchAndClean)
 const mockExtract = vi.mocked(extractWithTools)
 
 const fakeModel = { modelId: 'test-model' } as LanguageModel
@@ -60,14 +54,13 @@ describe('Scraper', () => {
   })
 
   it('returns success result when extraction succeeds', async () => {
-    mockFetch.mockResolvedValueOnce(PRODUCT_HTML)
     mockExtract.mockResolvedValueOnce({
       success: true,
       data: { title: 'Widget', price: 29.99, inStock: true },
       fieldMappings: goodMappings,
     })
 
-    const result = await scraper.scrape({ url: 'https://example.com/product', schema })
+    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(true)
     if (result.success) {
@@ -76,15 +69,14 @@ describe('Scraper', () => {
   })
 
   it('uses cached field mappings on second call (no LLM)', async () => {
-    mockFetch.mockResolvedValue(PRODUCT_HTML)
     mockExtract.mockResolvedValueOnce({
       success: true,
       data: { title: 'Widget', price: 29.99, inStock: true },
       fieldMappings: goodMappings,
     })
 
-    await scraper.scrape({ url: 'https://example.com/product', schema })
-    const result = await scraper.scrape({ url: 'https://example.com/product', schema })
+    await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(true)
     if (result.success) {
@@ -94,14 +86,27 @@ describe('Scraper', () => {
     expect(mockExtract).toHaveBeenCalledOnce()
   })
 
+  it('skips caching entirely when no cacheKey provided', async () => {
+    mockExtract.mockResolvedValue({
+      success: true,
+      data: { title: 'Widget', price: 29.99, inStock: true },
+      fieldMappings: goodMappings,
+    })
+
+    await scraper.scrape({ html: PRODUCT_HTML, schema })
+    await scraper.scrape({ html: PRODUCT_HTML, schema })
+
+    // Without cacheKey, extractWithTools is called every time (no cache)
+    expect(mockExtract).toHaveBeenCalledTimes(2)
+  })
+
   it('returns NO_DATA error when AI reports no data', async () => {
-    mockFetch.mockResolvedValueOnce(PRODUCT_HTML)
     mockExtract.mockResolvedValueOnce({
       success: false,
       error: { code: 'NO_DATA', message: 'Page is a login form' },
     })
 
-    const result = await scraper.scrape({ url: 'https://example.com/product', schema })
+    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -110,13 +115,12 @@ describe('Scraper', () => {
   })
 
   it('returns EXTRACTION_FAILED when tool loop exhausts', async () => {
-    mockFetch.mockResolvedValueOnce(PRODUCT_HTML)
     mockExtract.mockResolvedValueOnce({
       success: false,
       error: { code: 'EXTRACTION_FAILED', message: 'Could not extract' },
     })
 
-    const result = await scraper.scrape({ url: 'https://example.com/product', schema })
+    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -125,7 +129,6 @@ describe('Scraper', () => {
   })
 
   it('returns PERMANENT_FAILURE after too many consecutive failures', async () => {
-    mockFetch.mockResolvedValue(PRODUCT_HTML)
     mockExtract.mockResolvedValue({
       success: false,
       error: { code: 'EXTRACTION_FAILED', message: 'Failed' },
@@ -133,46 +136,49 @@ describe('Scraper', () => {
 
     // Exhaust consecutive failure count
     for (let i = 0; i < 4; i++) {
-      await scraper.scrape({ url: 'https://example.com/product', schema })
+      await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
     }
 
-    const result = await scraper.scrape({ url: 'https://example.com/product', schema })
+    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(false)
     if (!result.success) {
       expect(result.error.code).toBe('PERMANENT_FAILURE')
     }
-    // Should NOT have called fetch or extract on the 5th attempt
-    expect(mockFetch).toHaveBeenCalledTimes(4)
+    // Should NOT have called extract on the 5th attempt
     expect(mockExtract).toHaveBeenCalledTimes(4)
   })
 
-  it('returns FETCH_FAILED when page fetch throws', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('net::ERR_CONNECTION_REFUSED'))
+  it('does not track permanent failures when no cacheKey', async () => {
+    mockExtract.mockResolvedValue({
+      success: false,
+      error: { code: 'EXTRACTION_FAILED', message: 'Failed' },
+    })
 
-    const result = await scraper.scrape({ url: 'https://example.com/product', schema })
-
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.code).toBe('FETCH_FAILED')
-      expect(result.error.message).toContain('ERR_CONNECTION_REFUSED')
+    // Without cacheKey, failures aren't tracked, so no PERMANENT_FAILURE
+    for (let i = 0; i < 5; i++) {
+      const result = await scraper.scrape({ html: PRODUCT_HTML, schema })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.code).toBe('EXTRACTION_FAILED')
+      }
     }
+
+    // All 5 calls went through to extractWithTools (no permanent failure short-circuit)
+    expect(mockExtract).toHaveBeenCalledTimes(5)
   })
 
   it('re-runs tool loop with cached hint when cache hit fails validation', async () => {
-    mockFetch.mockResolvedValue(PRODUCT_HTML)
-
     // First call: succeeds and caches
     mockExtract.mockResolvedValueOnce({
       success: true,
       data: { title: 'Widget', price: 29.99, inStock: true },
       fieldMappings: goodMappings,
     })
-    await scraper.scrape({ url: 'https://example.com/product', schema })
+    await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     // Simulate page change — cached selectors fail, need tool loop with hint
     const changedHtml = '<html><body><h2>Widget v2</h2><div class="new-price">$39.99</div></body></html>'
-    mockFetch.mockResolvedValueOnce(changedHtml)
     mockExtract.mockResolvedValueOnce({
       success: true,
       data: { title: 'Widget v2', price: 39.99, inStock: true },
@@ -183,7 +189,7 @@ describe('Scraper', () => {
       },
     })
 
-    const result = await scraper.scrape({ url: 'https://example.com/product', schema })
+    const result = await scraper.scrape({ html: changedHtml, schema, cacheKey: 'test-product' })
 
     // extractWithTools should have been called with cachedMappings
     expect(mockExtract).toHaveBeenCalledTimes(2)
@@ -198,14 +204,13 @@ describe('Scraper', () => {
       maxToolCallsPerField: 5,
     })
 
-    mockFetch.mockResolvedValueOnce(PRODUCT_HTML)
     mockExtract.mockResolvedValueOnce({
       success: true,
       data: { title: 'Widget', price: 29.99, inStock: true },
       fieldMappings: goodMappings,
     })
 
-    await customScraper.scrape({ url: 'https://example.com/product', schema })
+    await customScraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     const callArgs = mockExtract.mock.calls[0][0] as any
     // schema has 3 fields (title, price, inStock), so 5 * 3 = 15

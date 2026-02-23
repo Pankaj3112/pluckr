@@ -4,7 +4,7 @@ import { type ZodObject, type ZodRawShape } from 'zod'
 import type { FieldMappings, ScrapeResult } from './types.js'
 import { type FieldInfo } from './prompts.js'
 import { SelectorCache } from './cache.js'
-import { fetchAndClean } from './fetcher.js'
+import { cleanHtml } from './cleaner.js'
 import { extractWithTools } from './llm.js'
 import { runSelectors } from './selector.js'
 import { validate } from './validator.js'
@@ -20,8 +20,9 @@ export interface ScraperConfig {
 }
 
 interface ScrapeOptions<T extends ZodRawShape> {
-  url: string
+  html: string
   schema: ZodObject<T>
+  cacheKey?: string
 }
 
 function extractFieldInfo(schema: ZodObject<ZodRawShape>): FieldInfo[] {
@@ -74,39 +75,28 @@ export class Scraper {
   async scrape<T extends ZodRawShape>(
     options: ScrapeOptions<T>,
   ): Promise<ScrapeResult<ReturnType<ZodObject<T>['parse']>>> {
-    const { url, schema } = options
+    const { html, schema, cacheKey } = options
     const schemaHash = computeSchemaHash(schema as unknown as ZodObject<ZodRawShape>)
+    const cleanedHtml = cleanHtml(html)
 
-    // Guard: check for permanent failure
-    const failureCount = this.cache.getFailureCount(url, schemaHash)
-    if (failureCount > MAX_CONSECUTIVE_FAILURES) {
-      return {
-        success: false,
-        error: {
-          code: 'PERMANENT_FAILURE',
-          message: `Scraping ${url} has failed ${failureCount} consecutive times. Clear the cache to retry.`,
-        },
+    // Guard: check for permanent failure (only when caching is enabled)
+    if (cacheKey) {
+      const failureCount = this.cache.getFailureCount(cacheKey, schemaHash)
+      if (failureCount > MAX_CONSECUTIVE_FAILURES) {
+        return {
+          success: false,
+          error: {
+            code: 'PERMANENT_FAILURE',
+            message: `Scraping has failed ${failureCount} consecutive times for cache key "${cacheKey}". Clear the cache to retry.`,
+          },
+        }
       }
     }
 
-    // 1. Fetch and clean page
-    let cleanedHtml: string
-    try {
-      cleanedHtml = await fetchAndClean(url)
-    } catch (err) {
-      return {
-        success: false,
-        error: {
-          code: 'FETCH_FAILED',
-          message: err instanceof Error ? err.message : String(err),
-        },
-      }
-    }
+    // Check cache for field mappings (only when caching is enabled)
+    const cachedMappings = cacheKey ? this.cache.get(cacheKey, schemaHash) : null
 
-    // 2. Check cache for field mappings
-    const cachedMappings = this.cache.get(url, schemaHash)
-
-    // 3. If cached, try running them directly first
+    // If cached, try running them directly first
     if (cachedMappings) {
       const rawData = runSelectors(cleanedHtml, cachedMappings)
       const result = validate(schema, rawData)
@@ -123,7 +113,7 @@ export class Scraper {
       }
     }
 
-    // 4. Run tool-based extraction
+    // Run tool-based extraction
     const fieldInfos = extractFieldInfo(schema as unknown as ZodObject<ZodRawShape>)
     const extractionResult = await extractWithTools({
       html: cleanedHtml,
@@ -136,14 +126,16 @@ export class Scraper {
     })
 
     if (extractionResult.success) {
-      this.cache.set(url, schemaHash, extractionResult.fieldMappings)
-      this.cache.resetFailures(url, schemaHash)
+      if (cacheKey) {
+        this.cache.set(cacheKey, schemaHash, extractionResult.fieldMappings)
+        this.cache.resetFailures(cacheKey, schemaHash)
+      }
       return { success: true, data: extractionResult.data as ReturnType<ZodObject<T>['parse']> }
     }
 
-    // Track failures for EXTRACTION_FAILED
-    if (extractionResult.error.code === 'EXTRACTION_FAILED') {
-      this.cache.incrementFailures(url, schemaHash)
+    // Track failures for EXTRACTION_FAILED (only when caching is enabled)
+    if (cacheKey && extractionResult.error.code === 'EXTRACTION_FAILED') {
+      this.cache.incrementFailures(cacheKey, schemaHash)
     }
 
     return extractionResult
