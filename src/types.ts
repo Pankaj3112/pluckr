@@ -7,7 +7,7 @@ export interface FieldMapping {
 export type FieldMappings = Record<string, FieldMapping>
 
 export interface ScrapeError {
-  code: 'NO_DATA' | 'EXTRACTION_FAILED' | 'FETCH_FAILED' | 'PERMANENT_FAILURE'
+  code: 'NO_DATA' | 'EXTRACTION_FAILED' | 'PERMANENT_FAILURE'
   message: string
   partialData?: Record<string, unknown>
 }
