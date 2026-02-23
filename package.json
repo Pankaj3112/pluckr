@@ -1,4 +1,5 @@
 {
+  "name": "pluckr",
   "private": true,
   "workspaces": [
     "packages/*"
