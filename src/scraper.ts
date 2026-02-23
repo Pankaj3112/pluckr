@@ -138,7 +138,7 @@ export class Scraper {
     if (extractionResult.success) {
       this.cache.set(url, schemaHash, extractionResult.fieldMappings)
       this.cache.resetFailures(url, schemaHash)
-      return { success: true, data: extractionResult.data }
+      return { success: true, data: extractionResult.data as ReturnType<ZodObject<T>['parse']> }
     }
 
     // Track failures for EXTRACTION_FAILED
