@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Scraper, ExtractionFailed } from "../src/index.js";
 
 const scraper = new Scraper({
-  model: google("gemini-3.1-pro-preview"),
+  model: google("gemini-2.5-pro"),
   debug: true,
 });
 
