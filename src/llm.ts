@@ -1,6 +1,4 @@
-import { generateObject } from 'ai'
-import { createAnthropic } from '@ai-sdk/anthropic'
-import { createOpenAI } from '@ai-sdk/openai'
+import { generateObject, type LanguageModel } from 'ai'
 import { z } from 'zod'
 import {
   GENERATE_SELECTORS_SYSTEM,
@@ -8,21 +6,6 @@ import {
   FIX_SELECTORS_SYSTEM,
   fixSelectorsPrompt,
 } from './prompts.js'
-
-export interface LLMConfig {
-  provider: 'anthropic' | 'openai'
-  apiKey: string
-  model: string
-}
-
-function createModel(config: LLMConfig) {
-  if (config.provider === 'anthropic') {
-    const provider = createAnthropic({ apiKey: config.apiKey })
-    return provider(config.model)
-  }
-  const provider = createOpenAI({ apiKey: config.apiKey })
-  return provider(config.model)
-}
 
 function selectorsSchema(fieldNames: string[]) {
   const shape: Record<string, z.ZodString> = {}
@@ -37,10 +20,9 @@ function selectorsSchema(fieldNames: string[]) {
 export async function generateSelectors(
   html: string,
   fieldNames: string[],
-  config: LLMConfig,
+  model: LanguageModel,
 ): Promise<Record<string, string>> {
   const fields = fieldNames.map((name) => ({ name, type: 'string' }))
-  const model = createModel(config)
 
   const { object } = await generateObject({
     model,
@@ -57,10 +39,9 @@ export async function fixSelectors(
   previousSelectors: Record<string, string>,
   errors: string,
   rawData: unknown,
-  config: LLMConfig,
+  model: LanguageModel,
 ): Promise<Record<string, string>> {
   const fieldNames = Object.keys(previousSelectors)
-  const model = createModel(config)
 
   const { object } = await generateObject({
     model,

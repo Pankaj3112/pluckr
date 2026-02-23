@@ -1,28 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { generateSelectors, fixSelectors, type LLMConfig } from '../llm.js'
+import type { LanguageModel } from 'ai'
+import { generateSelectors, fixSelectors } from '../llm.js'
 
 // Mock the ai module
-vi.mock('ai', () => ({
-  generateObject: vi.fn(),
-}))
-
-vi.mock('@ai-sdk/anthropic', () => ({
-  createAnthropic: vi.fn(() => vi.fn((model: string) => ({ modelId: model, provider: 'anthropic' }))),
-}))
-
-vi.mock('@ai-sdk/openai', () => ({
-  createOpenAI: vi.fn(() => vi.fn((model: string) => ({ modelId: model, provider: 'openai' }))),
-}))
+vi.mock('ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('ai')>()
+  return {
+    ...actual,
+    generateObject: vi.fn(),
+  }
+})
 
 import { generateObject } from 'ai'
 
 const mockGenerateObject = vi.mocked(generateObject)
 
-const config: LLMConfig = {
-  provider: 'anthropic',
-  apiKey: 'test-key',
-  model: 'claude-haiku-4-5-20251001',
-}
+const fakeModel = { modelId: 'test-model' } as LanguageModel
 
 const html = '<html><body><h1>Product</h1><span class="price">$10</span></body></html>'
 
@@ -38,7 +31,7 @@ describe('generateSelectors', () => {
       },
     } as any)
 
-    const result = await generateSelectors(html, ['title', 'price'], config)
+    const result = await generateSelectors(html, ['title', 'price'], fakeModel)
     expect(result).toEqual({ title: 'h1', price: '.price' })
     expect(mockGenerateObject).toHaveBeenCalledOnce()
   })
@@ -57,7 +50,7 @@ describe('fixSelectors', () => {
       { title: 'h1', price: '.wrong' },
       'price: Expected number, received NaN',
       { title: 'Product', price: null },
-      config,
+      fakeModel,
     )
     expect(result).toEqual({ title: 'h1', price: 'span.price' })
     expect(mockGenerateObject).toHaveBeenCalledOnce()

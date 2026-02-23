@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type { LanguageModel } from 'ai'
 import { z } from 'zod'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -23,6 +24,8 @@ const mockFetch = vi.mocked(fetchAndClean)
 const mockGenerate = vi.mocked(generateSelectors)
 const mockFix = vi.mocked(fixSelectors)
 
+const fakeModel = { modelId: 'test-model' } as LanguageModel
+
 const PRODUCT_HTML = `<html><body>
   <h1>Widget</h1>
   <span class="price">29.99</span>
@@ -43,9 +46,7 @@ describe('Scraper', () => {
     vi.clearAllMocks()
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'healscrape-test-'))
     scraper = new Scraper({
-      provider: 'anthropic',
-      apiKey: 'test-key',
-      model: 'test-model',
+      model: fakeModel,
       cachePath: path.join(tmpDir, 'cache.db'),
     })
   })

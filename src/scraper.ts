@@ -1,8 +1,9 @@
 import crypto from 'node:crypto'
+import { type LanguageModel } from 'ai'
 import { type ZodObject, type ZodRawShape } from 'zod'
 import { SelectorCache } from './cache.js'
 import { fetchAndClean } from './fetcher.js'
-import { generateSelectors, fixSelectors, type LLMConfig } from './llm.js'
+import { generateSelectors, fixSelectors } from './llm.js'
 import { runSelectors } from './selector.js'
 import { validate } from './validator.js'
 import { ExtractionFailed, PermanentFailure } from './exceptions.js'
@@ -10,9 +11,7 @@ import { ExtractionFailed, PermanentFailure } from './exceptions.js'
 const MAX_CONSECUTIVE_FAILURES = 3
 
 export interface ScraperConfig {
-  provider: 'anthropic' | 'openai'
-  apiKey: string
-  model: string
+  model: LanguageModel
   cachePath?: string
 }
 
@@ -32,15 +31,11 @@ function computeSchemaHash(schema: ZodObject<ZodRawShape>): string {
 
 export class Scraper {
   private cache: SelectorCache
-  private llmConfig: LLMConfig
+  private model: LanguageModel
 
   constructor(config: ScraperConfig) {
     this.cache = new SelectorCache(config.cachePath)
-    this.llmConfig = {
-      provider: config.provider,
-      apiKey: config.apiKey,
-      model: config.model,
-    }
+    this.model = config.model
   }
 
   async scrape<T extends ZodRawShape>(
@@ -64,7 +59,7 @@ export class Scraper {
     // 3. Generate selectors if no cache
     const fieldNames = Object.keys(schema.shape)
     if (!selectors) {
-      selectors = await generateSelectors(cleanedHtml, fieldNames, this.llmConfig)
+      selectors = await generateSelectors(cleanedHtml, fieldNames, this.model)
       // Store generated selectors so failure tracking has a row to update
       this.cache.set(url, schemaHash, selectors)
     }
@@ -87,7 +82,7 @@ export class Scraper {
       selectors,
       result.errors,
       result.rawData,
-      this.llmConfig,
+      this.model,
     )
     const retryRawData = runSelectors(cleanedHtml, fixedSelectors)
     const retryResult = validate(schema, retryRawData)
