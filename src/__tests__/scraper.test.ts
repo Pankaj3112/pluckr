@@ -8,7 +8,7 @@ vi.mock('../llm.js', () => ({
 }))
 
 import { extractWithTools } from '../llm.js'
-import { Scraper } from '../scraper.js'
+import { Pluckr } from '../scraper.js'
 
 const mockExtract = vi.mocked(extractWithTools)
 
@@ -41,19 +41,19 @@ function createMemoryStorage(): Storage {
   }
 }
 
-describe('Scraper', () => {
-  let scraper: Scraper
+describe('Pluckr', () => {
+  let pluckr: Pluckr
 
   beforeEach(() => {
     vi.clearAllMocks()
-    scraper = new Scraper({
+    pluckr = new Pluckr({
       model: fakeModel,
       storage: createMemoryStorage(),
     })
   })
 
   afterEach(async () => {
-    await scraper.close()
+    await pluckr.close()
   })
 
   it('returns success result when extraction succeeds', async () => {
@@ -63,7 +63,7 @@ describe('Scraper', () => {
       fieldMappings: goodMappings,
     })
 
-    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    const result = await pluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(true)
     if (result.success) {
@@ -78,8 +78,8 @@ describe('Scraper', () => {
       fieldMappings: goodMappings,
     })
 
-    await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
-    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    await pluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    const result = await pluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(true)
     if (result.success) {
@@ -95,14 +95,14 @@ describe('Scraper', () => {
       fieldMappings: goodMappings,
     })
 
-    await scraper.scrape({ html: PRODUCT_HTML, schema })
-    await scraper.scrape({ html: PRODUCT_HTML, schema })
+    await pluckr.extract({ html: PRODUCT_HTML, schema })
+    await pluckr.extract({ html: PRODUCT_HTML, schema })
 
     expect(mockExtract).toHaveBeenCalledTimes(2)
   })
 
   it('uses default in-memory cache when no storage provided', async () => {
-    const defaultScraper = new Scraper({ model: fakeModel })
+    const defaultPluckr = new Pluckr({ model: fakeModel })
 
     mockExtract.mockResolvedValueOnce({
       success: true,
@@ -110,14 +110,14 @@ describe('Scraper', () => {
       fieldMappings: goodMappings,
     })
 
-    await defaultScraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test' })
-    const result = await defaultScraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test' })
+    await defaultPluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test' })
+    const result = await defaultPluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test' })
 
     // Default MemoryStorage caches — second call uses cache, no LLM
     expect(mockExtract).toHaveBeenCalledOnce()
     expect(result.success).toBe(true)
 
-    await defaultScraper.close()
+    await defaultPluckr.close()
   })
 
   it('returns NO_DATA error when AI reports no data', async () => {
@@ -126,7 +126,7 @@ describe('Scraper', () => {
       error: { code: 'NO_DATA', message: 'Page is a login form' },
     })
 
-    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    const result = await pluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -140,7 +140,7 @@ describe('Scraper', () => {
       error: { code: 'EXTRACTION_FAILED', message: 'Could not extract' },
     })
 
-    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    const result = await pluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -155,10 +155,10 @@ describe('Scraper', () => {
     })
 
     for (let i = 0; i < 4; i++) {
-      await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+      await pluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
     }
 
-    const result = await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    const result = await pluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -174,7 +174,7 @@ describe('Scraper', () => {
     })
 
     for (let i = 0; i < 5; i++) {
-      const result = await scraper.scrape({ html: PRODUCT_HTML, schema })
+      const result = await pluckr.extract({ html: PRODUCT_HTML, schema })
       expect(result.success).toBe(false)
       if (!result.success) {
         expect(result.error.code).toBe('EXTRACTION_FAILED')
@@ -190,7 +190,7 @@ describe('Scraper', () => {
       data: { title: 'Widget', price: 29.99, inStock: true },
       fieldMappings: goodMappings,
     })
-    await scraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    await pluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     const changedHtml = '<html><body><h2>Widget v2</h2><div class="new-price">$39.99</div></body></html>'
     mockExtract.mockResolvedValueOnce({
@@ -203,7 +203,7 @@ describe('Scraper', () => {
       },
     })
 
-    const result = await scraper.scrape({ html: changedHtml, schema, cacheKey: 'test-product' })
+    const result = await pluckr.extract({ html: changedHtml, schema, cacheKey: 'test-product' })
 
     expect(mockExtract).toHaveBeenCalledTimes(2)
     const secondCallArgs = mockExtract.mock.calls[1][0] as any
@@ -211,7 +211,7 @@ describe('Scraper', () => {
   })
 
   it('passes maxToolCallsPerField * fieldCount as maxToolCalls', async () => {
-    const customScraper = new Scraper({
+    const customPluckr = new Pluckr({
       model: fakeModel,
       storage: createMemoryStorage(),
       maxToolCallsPerField: 5,
@@ -223,11 +223,11 @@ describe('Scraper', () => {
       fieldMappings: goodMappings,
     })
 
-    await customScraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
+    await customPluckr.extract({ html: PRODUCT_HTML, schema, cacheKey: 'test-product' })
 
     const callArgs = mockExtract.mock.calls[0][0] as any
     expect(callArgs.maxToolCalls).toBe(15)
 
-    await customScraper.close()
+    await customPluckr.close()
   })
 })

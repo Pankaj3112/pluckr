@@ -1,13 +1,13 @@
 import Database from 'better-sqlite3'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { CacheEntry, Storage } from 'healscrape'
+import type { CacheEntry, Storage } from '@pluckr/core'
 
 export class SqliteStorage implements Storage {
   private db: Database.Database
 
   constructor(dbPath?: string) {
-    const resolvedPath = dbPath ?? path.join(process.cwd(), '.healscrape', 'cache.db')
+    const resolvedPath = dbPath ?? path.join(process.cwd(), '.pluckr', 'cache.db')
     const dir = path.dirname(resolvedPath)
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })

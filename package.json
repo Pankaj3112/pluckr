@@ -1,5 +1,5 @@
 {
-  "name": "healscrape",
+  "name": "@pluckr/core",
   "version": "0.1.0",
   "description": "Schema-first, self-healing HTML data extraction with LLM-generated selectors",
   "type": "module",

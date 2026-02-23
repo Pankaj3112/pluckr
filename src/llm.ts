@@ -1,6 +1,6 @@
 import { generateText, tool, stepCountIs, type LanguageModel } from 'ai'
 import { z, type ZodObject, type ZodRawShape } from 'zod'
-import type { FieldMappings, ScrapeError } from './types.js'
+import type { FieldMappings, ExtractError } from './types.js'
 import { testSingleSelector } from './selector.js'
 import { runSelectors } from './selector.js'
 import { validate } from './validator.js'
@@ -13,7 +13,7 @@ import {
 
 export type ExtractionResult<T> =
   | { success: true; data: T; fieldMappings: FieldMappings }
-  | { success: false; error: ScrapeError }
+  | { success: false; error: ExtractError }
 
 interface ExtractWithToolsOptions<T extends ZodRawShape> {
   html: string

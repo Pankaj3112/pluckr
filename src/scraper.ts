@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { type LanguageModel } from 'ai'
 import { type ZodObject, type ZodRawShape } from 'zod'
-import type { FieldMappings, ScrapeResult, Storage } from './types.js'
+import type { FieldMappings, ExtractResult, Storage } from './types.js'
 import { type FieldInfo } from './prompts.js'
 import { cleanHtml } from './cleaner.js'
 import { extractWithTools } from './llm.js'
@@ -12,14 +12,14 @@ import { validate } from './validator.js'
 const MAX_CONSECUTIVE_FAILURES = 3
 const DEFAULT_MAX_TOOL_CALLS_PER_FIELD = 3
 
-export interface ScraperConfig {
+export interface PluckrConfig {
   model: LanguageModel
   storage?: Storage
   debug?: boolean
   maxToolCallsPerField?: number
 }
 
-export interface ScrapeOptions<T extends ZodRawShape> {
+export interface ExtractOptions<T extends ZodRawShape> {
   html: string
   schema: ZodObject<T>
   cacheKey?: string
@@ -59,22 +59,22 @@ function computeSchemaHash(schema: ZodObject<ZodRawShape>): string {
   return crypto.createHash('sha256').update(content).digest('hex').slice(0, 16)
 }
 
-export class Scraper {
+export class Pluckr {
   private storage: Storage
   private model: LanguageModel
   private debug: boolean
   private maxToolCallsPerField: number
 
-  constructor(config: ScraperConfig) {
+  constructor(config: PluckrConfig) {
     this.storage = config.storage ?? new MemoryStorage()
     this.model = config.model
     this.debug = config.debug ?? false
     this.maxToolCallsPerField = config.maxToolCallsPerField ?? DEFAULT_MAX_TOOL_CALLS_PER_FIELD
   }
 
-  async scrape<T extends ZodRawShape>(
-    options: ScrapeOptions<T>,
-  ): Promise<ScrapeResult<ReturnType<ZodObject<T>['parse']>>> {
+  async extract<T extends ZodRawShape>(
+    options: ExtractOptions<T>,
+  ): Promise<ExtractResult<ReturnType<ZodObject<T>['parse']>>> {
     const { html, schema, cacheKey } = options
     const schemaHash = computeSchemaHash(schema as unknown as ZodObject<ZodRawShape>)
     const cleanedHtml = cleanHtml(html)
@@ -88,7 +88,7 @@ export class Scraper {
         success: false,
         error: {
           code: 'PERMANENT_FAILURE',
-          message: `Scraping has failed ${entry.consecutiveFailures} consecutive times for cache key "${cacheKey}". Clear the cache to retry.`,
+          message: `Extraction has failed ${entry.consecutiveFailures} consecutive times for cache key "${cacheKey}". Clear the cache to retry.`,
         },
       }
     }

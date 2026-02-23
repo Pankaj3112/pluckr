@@ -17,12 +17,12 @@ export interface Storage {
   close(): Promise<void>
 }
 
-export interface ScrapeError {
+export interface ExtractError {
   code: 'NO_DATA' | 'EXTRACTION_FAILED' | 'PERMANENT_FAILURE'
   message: string
   partialData?: Record<string, unknown>
 }
 
-export type ScrapeResult<T> =
+export type ExtractResult<T> =
   | { success: true; data: T }
-  | { success: false; error: ScrapeError }
+  | { success: false; error: ExtractError }

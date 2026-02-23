@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import type { ScrapeResult, ScrapeError } from '../types.js'
+import type { ExtractResult, ExtractError } from '../types.js'
 
-describe('ScrapeResult type', () => {
+describe('ExtractResult type', () => {
   it('narrows to success branch', () => {
-    const result: ScrapeResult<{ title: string }> = {
+    const result: ExtractResult<{ title: string }> = {
       success: true,
       data: { title: 'Widget' },
     }
@@ -13,7 +13,7 @@ describe('ScrapeResult type', () => {
   })
 
   it('narrows to error branch', () => {
-    const result: ScrapeResult<{ title: string }> = {
+    const result: ExtractResult<{ title: string }> = {
       success: false,
       error: {
         code: 'NO_DATA',
@@ -27,7 +27,7 @@ describe('ScrapeResult type', () => {
   })
 
   it('error branch supports partialData', () => {
-    const result: ScrapeResult<{ title: string; price: number }> = {
+    const result: ExtractResult<{ title: string; price: number }> = {
       success: false,
       error: {
         code: 'EXTRACTION_FAILED',

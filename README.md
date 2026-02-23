@@ -1,22 +1,21 @@
-# healscrape
+# @pluckr/core
 
-Schema-first, self-healing web scraping powered by LLMs. Define what you want with a Zod schema, and healscrape figures out how to extract it.
+Schema-first, self-healing HTML data extraction powered by LLMs. Define what you want with a Zod schema, and Pluckr figures out how to extract it.
 
 ## How it works
 
-1. You provide a URL and a Zod schema describing the data you want
-2. healscrape fetches the page with Playwright (handles JS rendering)
-3. An LLM generates CSS selectors for each schema field
-4. Selectors are run against the page to extract raw values
+1. You provide HTML and a Zod schema describing the data you want
+2. An LLM generates CSS selectors for each schema field
+3. Selectors are tested and verified via a tool loop
+4. Selectors are run against the HTML to extract raw values
 5. Zod validates and coerces the extracted data
-6. Working selectors are cached in SQLite — subsequent runs are free (no LLM calls)
-7. If the page changes and selectors break, healscrape asks the LLM to fix them
+6. Working selectors are cached — subsequent runs are free (no LLM calls)
+7. If the page changes and selectors break, Pluckr asks the LLM to fix them
 
 ## Installation
 
 ```bash
-npm install healscrape
-npx playwright install chromium
+npm install @pluckr/core
 ```
 
 You also need an AI SDK provider package for the LLM of your choice:
@@ -28,14 +27,20 @@ npm install @ai-sdk/openai
 npm install @ai-sdk/google
 ```
 
+For persistent caching with SQLite:
+
+```bash
+npm install @pluckr/sqlite
+```
+
 ## Quick Start
 
 ```typescript
-import { Scraper } from 'healscrape'
+import { Pluckr } from '@pluckr/core'
 import { anthropic } from '@ai-sdk/anthropic'
 import { z } from 'zod'
 
-const scraper = new Scraper({
+const pluckr = new Pluckr({
   model: anthropic('claude-haiku-4-5-20251001'),
 })
 
@@ -46,20 +51,23 @@ const ProductSchema = z.object({
   inStock: z.coerce.boolean(),
 })
 
-const product = await scraper.scrape({
-  url: 'https://example.com/product',
+const result = await pluckr.extract({
+  html: '<html>...</html>',
   schema: ProductSchema,
+  cacheKey: 'my-product-page',
 })
 
-console.log(product.title)  // fully typed!
+if (result.success) {
+  console.log(result.data.title)  // fully typed!
+}
 
-// Close when done to release the SQLite connection
-scraper.close()
+// Close when done to release resources
+await pluckr.close()
 ```
 
 ## Bring your own model
 
-healscrape accepts any [Vercel AI SDK](https://sdk.vercel.ai) compatible model. Pass it directly to the `Scraper` constructor:
+Pluckr accepts any [Vercel AI SDK](https://sdk.vercel.ai) compatible model:
 
 ```typescript
 import { anthropic } from '@ai-sdk/anthropic'
@@ -67,13 +75,13 @@ import { openai } from '@ai-sdk/openai'
 import { google } from '@ai-sdk/google'
 
 // Anthropic
-new Scraper({ model: anthropic('claude-haiku-4-5-20251001') })
+new Pluckr({ model: anthropic('claude-haiku-4-5-20251001') })
 
 // OpenAI
-new Scraper({ model: openai('gpt-4o-mini') })
+new Pluckr({ model: openai('gpt-4o-mini') })
 
 // Google
-new Scraper({ model: google('gemini-2.0-flash') })
+new Pluckr({ model: google('gemini-2.0-flash') })
 ```
 
 ## Important: Use `z.coerce` for non-string fields
@@ -82,47 +90,49 @@ CSS selectors extract text from HTML, which means all raw values are strings. Us
 
 ## Caching
 
-Working selectors are stored in `.healscrape/cache.db` (SQLite) in your project root. This means:
-
-- **First scrape** of a URL+schema combo calls the LLM (~1-2s)
-- **Subsequent scrapes** use cached selectors (instant, free)
-- **If selectors break** (page changed), healscrape automatically asks the LLM to fix them
-- **After 4 consecutive failures**, healscrape throws `PermanentFailure` to avoid wasting tokens
-
-### Custom cache location
+By default, Pluckr uses in-memory storage. For persistent caching, use `@pluckr/sqlite`:
 
 ```typescript
-const scraper = new Scraper({
+import { Pluckr } from '@pluckr/core'
+import { SqliteStorage } from '@pluckr/sqlite'
+
+const pluckr = new Pluckr({
   model: anthropic('claude-haiku-4-5-20251001'),
-  cachePath: '/path/to/custom/cache.db',
+  storage: new SqliteStorage(),  // defaults to .pluckr/cache.db
 })
 ```
+
+- **First extraction** of a cacheKey+schema combo calls the LLM (~1-2s)
+- **Subsequent extractions** use cached selectors (instant, free)
+- **If selectors break** (page changed), Pluckr automatically asks the LLM to fix them
+- **After 4 consecutive failures**, returns `PERMANENT_FAILURE` to avoid wasting tokens
 
 ### Clearing the cache
 
 Delete the cache file to start fresh:
 
 ```bash
-rm -rf .healscrape/
+rm -rf .pluckr/
 ```
 
 ## Error Handling
 
 ```typescript
-import { Scraper, ExtractionFailed, PermanentFailure } from 'healscrape'
+const result = await pluckr.extract({ html, schema, cacheKey: 'my-page' })
 
-try {
-  const data = await scraper.scrape({ url, schema })
-} catch (err) {
-  if (err instanceof ExtractionFailed) {
-    // LLM couldn't generate working selectors
-    console.error(err.message)    // human-readable summary
-    console.error(err.rawData)    // what was actually extracted
-    console.error(err.selectors)  // the CSS selectors that were tried
-  } else if (err instanceof PermanentFailure) {
-    // Too many consecutive failures for this URL+schema
-    // Clear the cache and try again, or check if the site changed
-    console.error(err.message)
+if (result.success) {
+  console.log(result.data)
+} else {
+  switch (result.error.code) {
+    case 'NO_DATA':
+      // Page doesn't contain the requested data
+      break
+    case 'EXTRACTION_FAILED':
+      // LLM couldn't generate working selectors
+      break
+    case 'PERMANENT_FAILURE':
+      // Too many consecutive failures — clear cache to retry
+      break
   }
 }
 ```

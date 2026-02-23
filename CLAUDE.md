@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**healscrape** is a TypeScript library for schema-first, self-healing HTML data extraction powered by LLMs. Users provide HTML and a Zod schema, the library uses an agentic LLM tool loop to generate and verify CSS selectors, extracts and validates data, caches working selectors in SQLite, and automatically heals broken selectors when page structures change.
+**@pluckr/core** is a TypeScript library for schema-first, self-healing HTML data extraction powered by LLMs. Users provide HTML and a Zod schema, the library uses an agentic LLM tool loop to generate and verify CSS selectors, extracts and validates data, caches working selectors, and automatically heals broken selectors when page structures change.
 
 ## Commands
 
@@ -20,9 +20,9 @@ npx vitest run src/__tests__/cache.test.ts   # Run a single test file
 The extraction pipeline flows: **clean → cache check → tool-based LLM extraction loop → validate → cache (or return error)**
 
 ```
-Scraper.scrape({ html, schema, cacheKey? }) → ScrapeResult<T>
+Pluckr.extract({ html, schema, cacheKey? }) → ExtractResult<T>
   ├─ cleanHtml: cheerio strips scripts, styles, hidden elements, irrelevant attrs
-  ├─ cacheKey provided? → SelectorCache: check for cached field mappings (SQLite)
+  ├─ cacheKey provided? → Storage: check for cached field mappings
   ├─ Cache hit? → runSelectors + validate → if valid, return success
   ├─ extractWithTools: agentic LLM loop with tools:
   │   ├─ testSelector: AI tests individual CSS selectors against HTML
@@ -37,15 +37,15 @@ Scraper.scrape({ html, schema, cacheKey? }) → ScrapeResult<T>
 
 | Module | Role |
 |--------|------|
-| `scraper.ts` | Main orchestration class, public API, returns `ScrapeResult<T>` |
-| `cache.ts` | SQLite selector cache with failure tracking |
+| `scraper.ts` | Main `Pluckr` class, public API, returns `ExtractResult<T>` |
+| `types.ts` | `FieldMapping`, `FieldMappings`, `ExtractResult`, `ExtractError` types |
+| `index.ts` | Public exports: `Pluckr`, `PluckrConfig`, `ExtractOptions`, `cleanHtml`, types |
 | `cleaner.ts` | cheerio-based HTML cleaning (strips noise for LLM token efficiency) |
 | `selector.ts` | CSS selector execution + JS transform application + `testSingleSelector` helper |
 | `llm.ts` | Vercel AI SDK wrapper: `extractWithTools` using `generateText` + tools |
 | `validator.ts` | Zod validation wrapper with error formatting |
 | `prompts.ts` | LLM prompt templates: `EXTRACTION_SYSTEM_PROMPT`, `buildExtractionPrompt`, `buildCachedHintPrompt` |
-| `types.ts` | `FieldMapping`, `FieldMappings`, `ScrapeResult`, `ScrapeError` types |
-| `index.ts` | Public exports: `Scraper`, `ScraperConfig`, `ScrapeOptions`, `cleanHtml`, types |
+| `memory-storage.ts` | In-memory `Storage` implementation (default) |
 
 ### Selector Value Extraction Logic
 
@@ -61,24 +61,28 @@ The cache key uses SHA256 of sorted field names + Zod type names + descriptions 
 
 ## Key Design Decisions
 
-- **BYO HTML**: Users provide raw HTML; healscrape does not fetch pages. This keeps the library lightweight (no browser deps) and lets users handle fetching with their own tools (Puppeteer, Playwright, proxies, curl, etc.)
-- **Optional caching via `cacheKey`**: When `cacheKey` is provided, selectors are cached in SQLite. When omitted, every call runs the full LLM extraction (useful for one-off extractions)
+- **BYO HTML**: Users provide raw HTML; Pluckr does not fetch pages. This keeps the library lightweight (no browser deps) and lets users handle fetching with their own tools (Puppeteer, Playwright, proxies, curl, etc.)
+- **Optional caching via `cacheKey`**: When `cacheKey` is provided, selectors are cached via Storage. When omitted, every call runs the full LLM extraction (useful for one-off extractions)
 - **Tool-based extraction**: LLM uses `generateText` + tools (`testSelector`, `submitResult`, `reportNoData`) to iteratively verify selectors before committing, replacing blind `generateObject`
 - **Self-healing inside tool loop**: No separate heal step — the AI self-corrects within the same `generateText` call when `submitResult` reports validation errors
-- **Discriminated union return**: `scrape()` returns `ScrapeResult<T>` (`{ success: true, data }` | `{ success: false, error }`) instead of throwing exceptions
-- **Configurable tool calls**: `maxToolCalls` in `ScraperConfig` controls the `stopWhen` limit (default: 3)
-- **Permanent failure guard**: Checked at the start of `scrape()` before LLM call after 4+ consecutive failures (only with `cacheKey`)
+- **Discriminated union return**: `extract()` returns `ExtractResult<T>` (`{ success: true, data }` | `{ success: false, error }`) instead of throwing exceptions
+- **Configurable tool calls**: `maxToolCallsPerField` in `PluckrConfig` controls the tool call limit (default: 3 per field)
+- **Permanent failure guard**: Checked at the start of `extract()` before LLM call after 4+ consecutive failures (only with `cacheKey`)
 - **`LanguageModel` interface**: Accepts any Vercel AI SDK `LanguageModel` directly (Anthropic, OpenAI, Google, etc.)
-- **Cache location**: `.healscrape/cache.db` in `process.cwd()` by default, configurable via `ScraperConfig.cachePath`
+- **Cache location**: `.pluckr/cache.db` in `process.cwd()` by default (via `@pluckr/sqlite`), configurable via constructor path
 - **Cache-first with hint**: On cache hit, runs cached selectors first; if validation fails, passes them as hints to the tool loop
 - **Dual format output**: tsup builds ESM (`dist/index.js`) + CJS (`dist/index.cjs`) + TypeScript declarations
+
+## Package Structure
+
+- **`@pluckr/core`** — main extraction library (this package)
+- **`@pluckr/sqlite`** — SQLite storage backend (in `packages/sqlite/`)
 
 ## Tech Stack
 
 - **TypeScript** (strict mode) with ES2022 target
 - **Zod** for schema validation with coercion
 - **cheerio** for HTML parsing, cleaning, and selector execution
-- **better-sqlite3** for embedded selector cache
 - **Vercel AI SDK (`ai` v6)** for LLM abstraction with tool calling (`generateText`, `tool`, `stepCountIs`)
 - **vitest** for testing (globals enabled — no imports needed for `describe`/`it`/`expect`)
 - **tsup** for bundling

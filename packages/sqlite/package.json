@@ -1,7 +1,7 @@
 {
-  "name": "healscrape-sqlite",
+  "name": "@pluckr/sqlite",
   "version": "0.1.0",
-  "description": "SQLite storage backend for healscrape",
+  "description": "SQLite storage backend for @pluckr/core",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -25,12 +25,12 @@
     "better-sqlite3": "^11"
   },
   "peerDependencies": {
-    "healscrape": "^0.1.0"
+    "@pluckr/core": "^0.1.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7",
     "@types/node": "^22",
-    "healscrape": "file:../../",
+    "@pluckr/core": "file:../../",
     "tsup": "^8",
     "typescript": "^5",
     "vitest": "^3"
