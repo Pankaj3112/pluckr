@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
-import { chromium } from 'playwright'
+import { chromium } from 'playwright-ghost'
+import plugins from 'playwright-ghost/plugins'
 
 const REMOVE_TAGS = ['script', 'style', 'svg', 'noscript', 'iframe']
 const HIDDEN_CLASSES = ['hidden', 'd-none', 'sr-only']
@@ -46,7 +47,9 @@ export function cleanHtml(html: string): string {
 }
 
 export async function fetchAndClean(url: string): Promise<string> {
-  const browser = await chromium.launch()
+  const browser = await chromium.launch({
+    plugins: plugins.recommended(),
+  })
   try {
     const page = await browser.newPage()
     await page.goto(url, { waitUntil: 'networkidle' })
