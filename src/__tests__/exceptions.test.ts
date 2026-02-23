@@ -1,13 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { ExtractionFailed, PermanentFailure } from '../exceptions.js'
+import type { FieldMappings } from '../types.js'
 
 describe('ExtractionFailed', () => {
   it('stores context and formats message', () => {
+    const fieldMappings: FieldMappings = {
+      title: { selector: 'h1', transform: 'value.trim()' },
+      price: { selector: '.price', transform: "parseFloat(value.replace(/[^0-9.]/g, ''))" },
+    }
+
     const err = new ExtractionFailed({
       url: 'https://example.com',
       errors: 'price: Expected number, received NaN',
       rawData: { title: 'Widget', price: 'N/A' },
-      selectors: { title: 'h1', price: '.price' },
+      fieldMappings,
     })
 
     expect(err).toBeInstanceOf(Error)
@@ -17,7 +23,7 @@ describe('ExtractionFailed', () => {
     expect(err.url).toBe('https://example.com')
     expect(err.errors).toBe('price: Expected number, received NaN')
     expect(err.rawData).toEqual({ title: 'Widget', price: 'N/A' })
-    expect(err.selectors).toEqual({ title: 'h1', price: '.price' })
+    expect(err.fieldMappings).toEqual(fieldMappings)
   })
 })
 

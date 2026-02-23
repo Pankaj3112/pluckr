@@ -1,31 +1,37 @@
 import { generateObject, type LanguageModel } from 'ai'
 import { z } from 'zod'
+import type { FieldMappings } from './types.js'
 import {
+  type FieldInfo,
   GENERATE_SELECTORS_SYSTEM,
   generateSelectorsPrompt,
   FIX_SELECTORS_SYSTEM,
   fixSelectorsPrompt,
 } from './prompts.js'
 
-function selectorsSchema(fieldNames: string[]) {
-  const shape: Record<string, z.ZodString> = {}
+function fieldMappingsSchema(fieldNames: string[]) {
+  const shape: Record<string, z.ZodObject<any>> = {}
   for (const name of fieldNames) {
-    shape[name] = z.string()
+    shape[name] = z.object({
+      selector: z.string(),
+      transform: z.string(),
+      attribute: z.string().optional(),
+    })
   }
   return z.object(shape)
 }
 
-export async function generateSelectors(
+export async function generateFieldMappings(
   html: string,
-  fieldNames: string[],
+  fields: FieldInfo[],
   model: LanguageModel,
-): Promise<Record<string, string>> {
-  const fields = fieldNames.map((name) => ({ name, type: 'string' }))
+): Promise<FieldMappings> {
+  const fieldNames = fields.map((f) => f.name)
 
   const { object } = await generateObject({
     model,
     temperature: 0.2,
-    schema: selectorsSchema(fieldNames),
+    schema: fieldMappingsSchema(fieldNames),
     system: GENERATE_SELECTORS_SYSTEM,
     prompt: generateSelectorsPrompt(html, fields),
   })
@@ -33,21 +39,21 @@ export async function generateSelectors(
   return object
 }
 
-export async function fixSelectors(
+export async function fixFieldMappings(
   html: string,
-  previousSelectors: Record<string, string>,
+  previousMappings: FieldMappings,
   errors: string,
   rawData: unknown,
   model: LanguageModel,
-): Promise<Record<string, string>> {
-  const fieldNames = Object.keys(previousSelectors)
+): Promise<FieldMappings> {
+  const fieldNames = Object.keys(previousMappings)
 
   const { object } = await generateObject({
     model,
     temperature: 0.2,
-    schema: selectorsSchema(fieldNames),
+    schema: fieldMappingsSchema(fieldNames),
     system: FIX_SELECTORS_SYSTEM,
-    prompt: fixSelectorsPrompt(html, previousSelectors, errors, rawData),
+    prompt: fixSelectorsPrompt(html, previousMappings, errors, rawData),
   })
 
   return object

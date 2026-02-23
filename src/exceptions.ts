@@ -1,23 +1,25 @@
+import type { FieldMappings } from './types.js'
+
 interface ExtractionFailedOptions {
   url: string
   errors: string
   rawData: unknown
-  selectors: Record<string, string>
+  fieldMappings: FieldMappings
 }
 
 export class ExtractionFailed extends Error {
   readonly url: string
   readonly errors: string
   readonly rawData: unknown
-  readonly selectors: Record<string, string>
+  readonly fieldMappings: FieldMappings
 
-  constructor({ url, errors, rawData, selectors }: ExtractionFailedOptions) {
+  constructor({ url, errors, rawData, fieldMappings }: ExtractionFailedOptions) {
     super(`Failed to extract data from ${url}: ${errors}`)
     this.name = 'ExtractionFailed'
     this.url = url
     this.errors = errors
     this.rawData = rawData
-    this.selectors = selectors
+    this.fieldMappings = fieldMappings
   }
 }
 

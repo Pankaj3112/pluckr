@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import fs from 'node:fs'
 import path from 'node:path'
+import type { FieldMappings } from './types.js'
 
 export class SelectorCache {
   private db: Database.Database
@@ -28,7 +29,7 @@ export class SelectorCache {
     `)
   }
 
-  get(url: string, schemaHash: string): Record<string, string> | null {
+  get(url: string, schemaHash: string): FieldMappings | null {
     const row = this.db
       .prepare('SELECT selectors FROM selector_cache WHERE url = ? AND schema_hash = ?')
       .get(url, schemaHash) as { selectors: string } | undefined
@@ -36,7 +37,7 @@ export class SelectorCache {
     return row ? JSON.parse(row.selectors) : null
   }
 
-  set(url: string, schemaHash: string, selectors: Record<string, string>): void {
+  set(url: string, schemaHash: string, fieldMappings: FieldMappings): void {
     this.db
       .prepare(
         `INSERT INTO selector_cache (url, schema_hash, selectors, last_success_at)
@@ -46,7 +47,7 @@ export class SelectorCache {
                        last_success_at = excluded.last_success_at,
                        consecutive_failures = 0`
       )
-      .run(url, schemaHash, JSON.stringify(selectors))
+      .run(url, schemaHash, JSON.stringify(fieldMappings))
   }
 
   getFailureCount(url: string, schemaHash: string): number {

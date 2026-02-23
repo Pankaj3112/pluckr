@@ -1,13 +1,27 @@
 import * as cheerio from 'cheerio'
+import type { FieldMappings } from './types.js'
+
+function extractRawValue(
+  el: cheerio.Cheerio<cheerio.Element>,
+  attribute?: string,
+): string | null {
+  // If the LLM specified an attribute, use it directly
+  if (attribute) {
+    return el.attr(attribute) ?? null
+  }
+
+  // Default: text content
+  return el.text().trim() || null
+}
 
 export function runSelectors(
   html: string,
-  selectors: Record<string, string>,
-): Record<string, string | null> {
+  fieldMappings: FieldMappings,
+): Record<string, unknown> {
   const $ = cheerio.load(html)
-  const results: Record<string, string | null> = {}
+  const results: Record<string, unknown> = {}
 
-  for (const [field, selector] of Object.entries(selectors)) {
+  for (const [field, { selector, transform, attribute }] of Object.entries(fieldMappings)) {
     const el = $(selector).first()
 
     if (el.length === 0) {
@@ -15,18 +29,17 @@ export function runSelectors(
       continue
     }
 
-    const tagName = el.prop('tagName')?.toLowerCase()
+    const rawValue = extractRawValue(el, attribute)
+    if (rawValue === null) {
+      results[field] = null
+      continue
+    }
 
-    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
-      results[field] = el.attr('value') ?? null
-    } else if (tagName === 'img') {
-      results[field] = el.attr('alt') ?? null
-    } else if (tagName === 'a') {
-      results[field] = el.attr('href') ?? null
-    } else if (el.attr('aria-label')) {
-      results[field] = el.attr('aria-label')!
-    } else {
-      results[field] = el.text().trim() || null
+    try {
+      const fn = new Function('value', `return ${transform}`)
+      results[field] = fn(rawValue)
+    } catch {
+      results[field] = null
     }
   }
 
