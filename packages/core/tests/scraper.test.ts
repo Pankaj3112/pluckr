@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { LanguageModel } from 'ai'
 import { z } from 'zod'
-import type { CacheEntry, FieldMappings, Storage } from '../types.js'
+import type { CacheEntry, FieldMappings, Storage } from '../src/types.js'
 
-vi.mock('../llm.js', () => ({
+vi.mock('../src/llm.js', () => ({
   extractWithTools: vi.fn(),
 }))
 
-import { extractWithTools } from '../llm.js'
-import { Pluckr } from '../scraper.js'
+import { extractWithTools } from '../src/llm.js'
+import { Pluckr } from '../src/scraper.js'
 
 const mockExtract = vi.mocked(extractWithTools)
 

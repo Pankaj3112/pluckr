@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { validate } from '../validator.js'
+import { validate } from '../src/validator.js'
 
 describe('validate', () => {
   const schema = z.object({

@@ -4,7 +4,7 @@ import {
   buildExtractionPrompt,
   buildCachedHintPrompt,
   type FieldInfo,
-} from '../prompts.js'
+} from '../src/prompts.js'
 
 describe('EXTRACTION_SYSTEM_PROMPT', () => {
   it('mentions testSelector tool', () => {

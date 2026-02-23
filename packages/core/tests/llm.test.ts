@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { LanguageModel } from 'ai'
-import type { FieldInfo } from '../prompts.js'
-import { extractWithTools, type ExtractionResult } from '../llm.js'
+import type { FieldInfo } from '../src/prompts.js'
+import { extractWithTools, type ExtractionResult } from '../src/llm.js'
 import { z } from 'zod'
 
 // Mock the 'ai' module

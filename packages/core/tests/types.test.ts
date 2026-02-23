@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { ExtractResult, ExtractError } from '../types.js'
+import type { ExtractResult, ExtractError } from '../src/types.js'
 
 describe('ExtractResult type', () => {
   it('narrows to success branch', () => {

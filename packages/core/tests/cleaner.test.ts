@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cleanHtml } from '../cleaner.js'
+import { cleanHtml } from '../src/cleaner.js'
 
 describe('cleanHtml', () => {
   it('removes script tags', () => {

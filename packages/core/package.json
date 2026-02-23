@@ -1,7 +1,7 @@
 {
-  "name": "@pluckr/sqlite",
+  "name": "@pluckr/core",
   "version": "0.1.0",
-  "description": "SQLite storage backend for @pluckr/core",
+  "description": "Schema-first, self-healing HTML data extraction with LLM-generated selectors",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -22,15 +22,24 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "better-sqlite3": "^11"
+    "ai": "^6",
+    "cheerio": "^1",
+    "zod": "^3"
   },
   "peerDependencies": {
-    "@pluckr/core": "^0.1.0"
+    "@ai-sdk/anthropic": "^1",
+    "@ai-sdk/openai": "^1"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/anthropic": {
+      "optional": true
+    },
+    "@ai-sdk/openai": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7",
     "@types/node": "^22",
-    "@pluckr/core": "*",
     "tsup": "^8",
     "typescript": "^5",
     "vitest": "^3"

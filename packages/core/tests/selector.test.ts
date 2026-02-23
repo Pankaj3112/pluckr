@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { runSelectors } from '../selector.js'
-import type { FieldMappings } from '../types.js'
+import { runSelectors } from '../src/selector.js'
+import type { FieldMappings } from '../src/types.js'
 
 const HTML = `
 <html>
@@ -110,7 +110,7 @@ describe('runSelectors', () => {
   })
 })
 
-import { testSingleSelector } from '../selector.js'
+import { testSingleSelector } from '../src/selector.js'
 
 describe('testSingleSelector', () => {
   it('returns found with raw and transformed values', () => {

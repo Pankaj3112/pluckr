@@ -9,10 +9,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run build          # Build ESM + CJS + type declarations to dist/
-npm test               # Run all tests (vitest)
-npm run test:watch     # Run tests in watch mode
-npx vitest run src/__tests__/cache.test.ts   # Run a single test file
+npm test                                          # Run all workspace tests
+npm test --workspace=packages/core                # Run core tests only
+npm run build --workspace=packages/core           # Build core package
+npm run build                                     # Build all packages
+npx vitest run packages/core/tests/scraper.test.ts  # Run a single test file
 ```
 
 ## Architecture
@@ -33,7 +34,7 @@ Pluckr.extract({ html, schema, cacheKey? }) → ExtractResult<T>
       └─ After 4+ consecutive failures (with cacheKey) → PERMANENT_FAILURE
 ```
 
-### Key Modules (all in `src/`)
+### Key Modules (all in `packages/core/src/`)
 
 | Module | Role |
 |--------|------|
@@ -73,10 +74,15 @@ The cache key uses SHA256 of sorted field names + Zod type names + descriptions 
 - **Cache-first with hint**: On cache hit, runs cached selectors first; if validation fails, passes them as hints to the tool loop
 - **Dual format output**: tsup builds ESM (`dist/index.js`) + CJS (`dist/index.cjs`) + TypeScript declarations
 
-## Package Structure
+## Monorepo Structure
 
-- **`@pluckr/core`** — main extraction library (this package)
-- **`@pluckr/sqlite`** — SQLite storage backend (in `packages/sqlite/`)
+```
+packages/
+  core/      — @pluckr/core (main extraction library)
+  sqlite/    — @pluckr/sqlite (SQLite storage backend)
+```
+
+npm workspaces are configured at the root.
 
 ## Tech Stack
 
@@ -89,4 +95,4 @@ The cache key uses SHA256 of sorted field names + Zod type names + descriptions 
 
 ## Testing
 
-Tests are in `src/__tests__/`. All LLM interactions are mocked. The test suite covers each module independently plus full orchestration in `scraper.test.ts`. Vitest globals are enabled so test helpers don't need explicit imports.
+Tests are in `packages/core/tests/`. All LLM interactions are mocked. The test suite covers each module independently plus full orchestration in `scraper.test.ts`. Vitest globals are enabled so test helpers don't need explicit imports.
