@@ -19,7 +19,7 @@ export interface ScraperConfig {
   maxToolCallsPerField?: number
 }
 
-interface ScrapeOptions<T extends ZodRawShape> {
+export interface ScrapeOptions<T extends ZodRawShape> {
   html: string
   schema: ZodObject<T>
   cacheKey?: string
