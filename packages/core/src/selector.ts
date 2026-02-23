@@ -1,8 +1,9 @@
-import * as cheerio from 'cheerio'
+import { load, type Cheerio } from 'cheerio'
+import type { AnyNode } from 'domhandler'
 import type { FieldMappings } from './types.js'
 
 function extractRawValue(
-  el: cheerio.Cheerio<cheerio.Element>,
+  el: Cheerio<AnyNode>,
   attribute?: string,
 ): string | null {
   // If the LLM specified an attribute, use it directly
@@ -18,7 +19,7 @@ export function runSelectors(
   html: string,
   fieldMappings: FieldMappings,
 ): Record<string, unknown> {
-  const $ = cheerio.load(html)
+  const $ = load(html)
   const results: Record<string, unknown> = {}
 
   for (const [field, { selector, transform, attribute }] of Object.entries(fieldMappings)) {
@@ -54,7 +55,7 @@ export function testSingleSelector(
   html: string,
   params: { selector: string; attribute?: string; transform?: string },
 ): TestSelectorResult {
-  const $ = cheerio.load(html)
+  const $ = load(html)
   const el = $(params.selector).first()
 
   if (el.length === 0) {

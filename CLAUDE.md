@@ -10,8 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm test                                          # Run all workspace tests
-npm test --workspace=packages/core                # Run core tests only
-npm run build --workspace=packages/core           # Build core package
+npm test --workspace=@pluckr/core                 # Run core tests only
+npm run build --workspace=@pluckr/core            # Build core package
 npm run build                                     # Build all packages
 npx vitest run packages/core/tests/scraper.test.ts  # Run a single test file
 ```

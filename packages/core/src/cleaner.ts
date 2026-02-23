@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio'
+import { load } from 'cheerio'
 
 const REMOVE_TAGS = ['script', 'style', 'svg', 'noscript', 'iframe']
 const HIDDEN_CLASSES = ['hidden', 'd-none', 'sr-only']
@@ -11,7 +11,7 @@ function isAllowedAttr(name: string): boolean {
 }
 
 export function cleanHtml(html: string): string {
-  const $ = cheerio.load(html)
+  const $ = load(html)
 
   // Remove unwanted tags entirely
   $(REMOVE_TAGS.join(',')).remove()

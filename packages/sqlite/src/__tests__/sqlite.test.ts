@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { SqliteStorage } from '../index.js'
-import type { FieldMappings } from 'healscrape'
+import type { FieldMappings } from '@pluckr/core'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
@@ -10,7 +10,7 @@ describe('SqliteStorage', () => {
   let tmpDir: string
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'healscrape-test-'))
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pluckr-test-'))
     storage = new SqliteStorage(path.join(tmpDir, 'cache.db'))
   })
 
