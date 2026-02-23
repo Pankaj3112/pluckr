@@ -41,36 +41,44 @@ describe('runSelectors', () => {
     expect(result.inStock).toBe(true)
   })
 
-  it('extracts aria-label when present', () => {
+  it('extracts attribute when specified', () => {
     const mappings: FieldMappings = {
-      rating: { selector: '.rating[aria-label]', transform: 'parseFloat(value)' },
+      rating: { selector: '.rating', transform: 'parseFloat(value)', attribute: 'aria-label' },
     }
     const result = runSelectors(HTML, mappings)
     expect(result.rating).toBe(4.5)
   })
 
-  it('extracts value from input elements', () => {
+  it('extracts value attribute from input elements', () => {
     const mappings: FieldMappings = {
-      sku: { selector: 'input[name="sku"]', transform: 'value.trim()' },
+      sku: { selector: 'input[name="sku"]', transform: 'value.trim()', attribute: 'value' },
     }
     const result = runSelectors(HTML, mappings)
     expect(result.sku).toBe('SKU-123')
   })
 
-  it('extracts alt from img elements', () => {
+  it('extracts alt attribute from img elements', () => {
     const mappings: FieldMappings = {
-      image: { selector: 'img.product-img', transform: 'value.trim()' },
+      image: { selector: 'img.product-img', transform: 'value.trim()', attribute: 'alt' },
     }
     const result = runSelectors(HTML, mappings)
     expect(result.image).toBe('Widget Pro front view')
   })
 
-  it('extracts href from anchor elements', () => {
+  it('extracts href attribute from anchor elements', () => {
+    const mappings: FieldMappings = {
+      brand: { selector: 'a.brand-link', transform: 'value.trim()', attribute: 'href' },
+    }
+    const result = runSelectors(HTML, mappings)
+    expect(result.brand).toBe('https://brand.com')
+  })
+
+  it('extracts text content from anchor when no attribute specified', () => {
     const mappings: FieldMappings = {
       brand: { selector: 'a.brand-link', transform: 'value.trim()' },
     }
     const result = runSelectors(HTML, mappings)
-    expect(result.brand).toBe('https://brand.com')
+    expect(result.brand).toBe('BrandCo')
   })
 
   it('returns null for selectors with no matches', () => {

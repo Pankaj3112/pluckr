@@ -14,6 +14,11 @@ Rules for selectors:
 - Do not use overly specific selectors that break on minor HTML changes
 - Do not use nth-child or positional selectors unless absolutely necessary
 
+Rules for value extraction:
+- By default, the text content of the matched element is extracted
+- If you need an HTML attribute instead (href, src, value, alt, etc.), set the \`attribute\` field (e.g. "href" for a link URL, "value" for an input, "src" for an image)
+- Only set \`attribute\` when you specifically need an attribute, not the text content
+
 Rules for transforms:
 - Each transform is a JavaScript expression that receives a variable \`value\` (string) and returns the correctly typed result
 - If the field has an instruction, follow it for the transform
@@ -78,5 +83,5 @@ ${JSON.stringify(rawData, null, 2)}
 Validation failed with these errors:
 ${errors}
 
-Fix the broken selectors and/or transforms and return the complete set (both working and fixed) as a JSON object mapping field names to {selector, transform} objects.`
+Fix the broken selectors and/or transforms and return the complete set (both working and fixed) as a JSON object mapping field names to {selector, transform, attribute?} objects. Only include attribute if you need an HTML attribute instead of text content.`
 }

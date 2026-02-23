@@ -10,11 +10,12 @@ import {
 } from './prompts.js'
 
 function fieldMappingsSchema(fieldNames: string[]) {
-  const shape: Record<string, z.ZodObject<{ selector: z.ZodString; transform: z.ZodString }>> = {}
+  const shape: Record<string, z.ZodObject<any>> = {}
   for (const name of fieldNames) {
     shape[name] = z.object({
       selector: z.string(),
       transform: z.string(),
+      attribute: z.string().optional(),
     })
   }
   return z.object(shape)

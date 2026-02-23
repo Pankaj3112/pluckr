@@ -15,6 +15,7 @@ const MAX_CONSECUTIVE_FAILURES = 3
 export interface ScraperConfig {
   model: LanguageModel
   cachePath?: string
+  debug?: boolean
 }
 
 interface ScrapeOptions<T extends ZodRawShape> {
@@ -59,10 +60,12 @@ function computeSchemaHash(schema: ZodObject<ZodRawShape>): string {
 export class Scraper {
   private cache: SelectorCache
   private model: LanguageModel
+  private debug: boolean
 
   constructor(config: ScraperConfig) {
     this.cache = new SelectorCache(config.cachePath)
     this.model = config.model
+    this.debug = config.debug ?? false
   }
 
   async scrape<T extends ZodRawShape>(
@@ -86,12 +89,24 @@ export class Scraper {
     // 3. Generate field mappings if no cache
     if (!fieldMappings) {
       const fieldInfos = extractFieldInfo(schema as unknown as ZodObject<ZodRawShape>)
+      if (this.debug) {
+        console.log('[debug] Field infos sent to LLM:', JSON.stringify(fieldInfos, null, 2))
+        console.log('[debug] Cleaned HTML length:', cleanedHtml.length, 'chars')
+      }
       fieldMappings = await generateFieldMappings(cleanedHtml, fieldInfos, this.model)
+      if (this.debug) {
+        console.log('[debug] LLM returned field mappings:', JSON.stringify(fieldMappings, null, 2))
+      }
       this.cache.set(url, schemaHash, fieldMappings)
+    } else if (this.debug) {
+      console.log('[debug] Using cached field mappings:', JSON.stringify(fieldMappings, null, 2))
     }
 
     // 4. Run selectors with transforms
     const rawData = runSelectors(cleanedHtml, fieldMappings)
+    if (this.debug) {
+      console.log('[debug] Extracted raw data:', JSON.stringify(rawData, null, 2))
+    }
 
     // 5. Validate
     const result = validate(schema, rawData)
@@ -102,6 +117,11 @@ export class Scraper {
       return result.data
     }
 
+    if (this.debug) {
+      console.log('[debug] Validation failed:', result.errors)
+      console.log('[debug] Attempting heal...')
+    }
+
     // 6. Healing attempt
     const fixedMappings = await fixFieldMappings(
       cleanedHtml,
@@ -110,7 +130,13 @@ export class Scraper {
       result.rawData,
       this.model,
     )
+    if (this.debug) {
+      console.log('[debug] Healed field mappings:', JSON.stringify(fixedMappings, null, 2))
+    }
     const retryRawData = runSelectors(cleanedHtml, fixedMappings)
+    if (this.debug) {
+      console.log('[debug] Healed raw data:', JSON.stringify(retryRawData, null, 2))
+    }
     const retryResult = validate(schema, retryRawData)
 
     if (retryResult.success) {
