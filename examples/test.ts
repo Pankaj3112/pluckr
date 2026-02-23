@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { google } from "@ai-sdk/google";
+import puppeteer from "puppeteer-ghost";
 import { z } from "zod";
 import { Scraper } from "../src/index.js";
 
@@ -51,7 +52,6 @@ const IMDbSchema = z.object({
 });
 
 // --- Test runner ---
-
 interface TestCase {
   name: string;
   url: string;
@@ -86,22 +86,6 @@ const tests: TestCase[] = [
   },
 ];
 
-async function fetchHtml(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.9",
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} for ${url}`);
-  }
-  return response.text();
-}
-
 async function main() {
   const target = process.argv[2];
 
@@ -114,12 +98,17 @@ async function main() {
     process.exit(1);
   }
 
+  const browser = await puppeteer.launch({ headless: true });
+
   for (const test of toRun) {
     console.log(`\n=== ${test.name} ===`);
     console.log(`URL: ${test.url}\n`);
 
+    const page = await browser.newPage();
     const start = Date.now();
-    const html = await fetchHtml(test.url);
+    await page.goto(test.url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    const html = await page.content();
+    await page.close();
     console.log(`Fetched in ${Date.now() - start}ms (${html.length} chars)`);
 
     const extractStart = Date.now();
@@ -140,10 +129,11 @@ async function main() {
     }
   }
 
+  await browser.close();
   scraper.close();
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error(err);
   scraper.close();
   process.exit(1);
