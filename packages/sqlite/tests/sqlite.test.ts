@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { SqliteStorage } from '../index.js'
+import { SqliteStorage } from '../src/index.js'
 import type { FieldMappings } from '@pluckr/core'
 import fs from 'node:fs'
 import path from 'node:path'

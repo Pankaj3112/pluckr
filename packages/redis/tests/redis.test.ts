@@ -19,7 +19,7 @@ vi.mock('ioredis', () => {
   return { default: MockRedis, Redis: MockRedis }
 })
 
-import { RedisStorage } from '../index.js'
+import { RedisStorage } from '../src/index.js'
 
 describe('RedisStorage', () => {
   beforeEach(() => {
