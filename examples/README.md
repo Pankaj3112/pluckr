@@ -11,6 +11,7 @@ Each example is a self-contained project. `cd` into any directory and run `npm i
 | [`with-playwright`](./with-playwright) | Playwright | Extract from JS-rendered SPAs |
 | [`with-puppeteer`](./with-puppeteer) | Puppeteer | Stealth browser with bot-detection avoidance |
 | [`with-sqlite`](./with-sqlite) | fetch + SQLite cache | Persistent selector caching across runs |
+| [`with-redis`](./with-redis) | fetch + Redis cache | Shared selector caching with optional TTL |
 
 ## Prerequisites
 
