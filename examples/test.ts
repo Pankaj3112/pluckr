@@ -1,8 +1,11 @@
 import "dotenv/config";
 import { google } from "@ai-sdk/google";
-import puppeteer from "puppeteer-ghost";
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { z } from "zod";
 import { Scraper } from "../src/index.js";
+
+puppeteer.use(StealthPlugin());
 
 const scraper = new Scraper({
   model: google("gemini-2.5-pro"),
