@@ -22,7 +22,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "ai": "^4",
+    "ai": "^6",
     "better-sqlite3": "^11",
     "cheerio": "^1",
     "playwright": "^1",
