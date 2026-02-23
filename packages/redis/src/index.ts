@@ -28,6 +28,7 @@ export class RedisStorage implements Storage {
     } else {
       this.redis = options?.url ? new Redis(options.url) : new Redis()
       this.owned = true
+      this.redis.on('error', () => {})
     }
   }
 
@@ -38,14 +39,18 @@ export class RedisStorage implements Storage {
   async get(key: string, schemaHash: string): Promise<CacheEntry | null> {
     const raw = await this.redis.get(this.key(key, schemaHash))
     if (!raw) return null
-    return JSON.parse(raw)
+    try {
+      return JSON.parse(raw) as CacheEntry
+    } catch {
+      return null
+    }
   }
 
   async set(key: string, schemaHash: string, entry: CacheEntry): Promise<void> {
     const redisKey = this.key(key, schemaHash)
     const value = JSON.stringify(entry)
 
-    if (this.ttl) {
+    if (this.ttl !== undefined) {
       await this.redis.set(redisKey, value, 'EX', this.ttl)
     } else {
       await this.redis.set(redisKey, value)

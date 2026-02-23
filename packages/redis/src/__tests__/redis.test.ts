@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { CacheEntry, FieldMappings } from '@pluckr/core'
 
 const store = new Map<string, string>()
-const mockSet = vi.fn(async (...args: unknown[]) => {
-  store.set(args[0] as string, args[1] as string)
+const mockSet = vi.fn(async (key: string, value: string, ..._rest: unknown[]) => {
+  store.set(key, value)
   return 'OK'
 })
 const mockGet = vi.fn(async (key: string) => store.get(key) ?? null)
@@ -14,6 +14,7 @@ vi.mock('ioredis', () => {
     set: mockSet,
     get: mockGet,
     quit: mockQuit,
+    on: vi.fn(),
   }))
   return { default: MockRedis, Redis: MockRedis }
 })
@@ -144,5 +145,12 @@ describe('RedisStorage', () => {
     const storage = new RedisStorage({ redis: fakeRedis })
     await storage.close()
     expect(mockQuit).not.toHaveBeenCalled()
+  })
+
+  it('returns null when stored value is not valid JSON', async () => {
+    const storage = new RedisStorage()
+    store.set('pluckr:corrupt:hash1', 'not-json')
+    const result = await storage.get('corrupt', 'hash1')
+    expect(result).toBeNull()
   })
 })
