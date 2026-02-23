@@ -1,0 +1,19 @@
+{
+  "name": "pluckr-with-playwright",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "@pluckr/core": "^0.1.1",
+    "@ai-sdk/google": "^3",
+    "dotenv": "^16",
+    "playwright": "^1",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}
