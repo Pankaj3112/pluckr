@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
-import { Scraper, ExtractionFailed } from "../src/index.js";
+import { Scraper } from "../src/index.js";
 
 const scraper = new Scraper({
   model: google("gemini-2.5-pro"),
@@ -102,21 +102,19 @@ async function main() {
     console.log(`\n=== ${test.name} ===`);
     console.log(`URL: ${test.url}\n`);
 
-    try {
-      const start = Date.now();
-      const result = await scraper.scrape({
-        url: test.url,
-        schema: test.schema,
-      });
-      console.log(`Completed in ${Date.now() - start}ms`);
-      console.log(result);
-    } catch (err) {
-      if (err instanceof ExtractionFailed) {
-        console.error("FAILED:", err.message);
-        console.error("Field mappings:", JSON.stringify(err.fieldMappings, null, 2));
-        console.error("Raw data:", err.rawData);
-      } else {
-        console.error("ERROR:", (err as Error).message ?? err);
+    const start = Date.now();
+    const result = await scraper.scrape({
+      url: test.url,
+      schema: test.schema,
+    });
+    console.log(`Completed in ${Date.now() - start}ms`);
+
+    if (result.success) {
+      console.log("Data:", result.data);
+    } else {
+      console.error(`FAILED [${result.error.code}]:`, result.error.message);
+      if (result.error.partialData) {
+        console.error("Partial data:", result.error.partialData);
       }
     }
   }

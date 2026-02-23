@@ -10,13 +10,13 @@ import { runSelectors } from './selector.js'
 import { validate } from './validator.js'
 
 const MAX_CONSECUTIVE_FAILURES = 3
-const DEFAULT_MAX_TOOL_CALLS = 3
+const DEFAULT_MAX_TOOL_CALLS_PER_FIELD = 3
 
 export interface ScraperConfig {
   model: LanguageModel
   cachePath?: string
   debug?: boolean
-  maxToolCalls?: number
+  maxToolCallsPerField?: number
 }
 
 interface ScrapeOptions<T extends ZodRawShape> {
@@ -62,13 +62,13 @@ export class Scraper {
   private cache: SelectorCache
   private model: LanguageModel
   private debug: boolean
-  private maxToolCalls: number
+  private maxToolCallsPerField: number
 
   constructor(config: ScraperConfig) {
     this.cache = new SelectorCache(config.cachePath)
     this.model = config.model
     this.debug = config.debug ?? false
-    this.maxToolCalls = config.maxToolCalls ?? DEFAULT_MAX_TOOL_CALLS
+    this.maxToolCallsPerField = config.maxToolCallsPerField ?? DEFAULT_MAX_TOOL_CALLS_PER_FIELD
   }
 
   async scrape<T extends ZodRawShape>(
@@ -130,7 +130,7 @@ export class Scraper {
       fields: fieldInfos,
       schema: schema as unknown as ZodObject<ZodRawShape>,
       model: this.model,
-      maxToolCalls: this.maxToolCalls,
+      maxToolCalls: this.maxToolCallsPerField * fieldInfos.length,
       cachedMappings: cachedMappings ?? undefined,
       debug: this.debug,
     })

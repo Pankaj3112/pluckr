@@ -191,11 +191,11 @@ describe('Scraper', () => {
     expect(secondCallArgs.cachedMappings).toBeDefined()
   })
 
-  it('passes maxToolCalls from config', async () => {
+  it('passes maxToolCallsPerField * fieldCount as maxToolCalls', async () => {
     const customScraper = new Scraper({
       model: fakeModel,
       cachePath: path.join(tmpDir, 'cache2.db'),
-      maxToolCalls: 7,
+      maxToolCallsPerField: 5,
     })
 
     mockFetch.mockResolvedValueOnce(PRODUCT_HTML)
@@ -208,7 +208,8 @@ describe('Scraper', () => {
     await customScraper.scrape({ url: 'https://example.com/product', schema })
 
     const callArgs = mockExtract.mock.calls[0][0] as any
-    expect(callArgs.maxToolCalls).toBe(7)
+    // schema has 3 fields (title, price, inStock), so 5 * 3 = 15
+    expect(callArgs.maxToolCalls).toBe(15)
 
     customScraper.close()
   })
