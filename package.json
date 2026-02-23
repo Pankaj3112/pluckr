@@ -1,0 +1,38 @@
+{
+  "name": "healscrape",
+  "version": "0.1.0",
+  "description": "Schema-first, self-healing web scraping with LLM-generated selectors",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "ai": "^4",
+    "@ai-sdk/anthropic": "^1",
+    "@ai-sdk/openai": "^1",
+    "zod": "^3",
+    "playwright": "^1",
+    "cheerio": "^1",
+    "better-sqlite3": "^11"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/better-sqlite3": "^7",
+    "@types/node": "^22",
+    "tsup": "^8",
+    "vitest": "^3"
+  }
+}
