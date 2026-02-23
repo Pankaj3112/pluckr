@@ -1,0 +1,19 @@
+{
+  "name": "pluckr-with-sqlite",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "@pluckr/core": "^0.1.1",
+    "@pluckr/sqlite": "^0.1.1",
+    "@ai-sdk/google": "^3",
+    "dotenv": "^16",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}
