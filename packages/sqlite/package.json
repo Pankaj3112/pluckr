@@ -1,6 +1,6 @@
 {
   "name": "@pluckr/sqlite",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SQLite storage backend for @pluckr/core",
   "type": "module",
   "main": "./dist/index.cjs",
