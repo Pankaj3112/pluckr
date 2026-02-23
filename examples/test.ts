@@ -1,7 +1,11 @@
 import "dotenv/config";
 import { google } from "@ai-sdk/google";
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { z } from "zod";
 import { Scraper } from "../src/index.js";
+
+puppeteer.use(StealthPlugin());
 
 const scraper = new Scraper({
   model: google("gemini-2.5-pro"),
@@ -51,7 +55,6 @@ const IMDbSchema = z.object({
 });
 
 // --- Test runner ---
-
 interface TestCase {
   name: string;
   url: string;
@@ -98,16 +101,26 @@ async function main() {
     process.exit(1);
   }
 
+  const browser = await puppeteer.launch({ headless: true });
+
   for (const test of toRun) {
     console.log(`\n=== ${test.name} ===`);
     console.log(`URL: ${test.url}\n`);
 
+    const page = await browser.newPage();
     const start = Date.now();
+    await page.goto(test.url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    const html = await page.content();
+    await page.close();
+    console.log(`Fetched in ${Date.now() - start}ms (${html.length} chars)`);
+
+    const extractStart = Date.now();
     const result = await scraper.scrape({
-      url: test.url,
+      html,
       schema: test.schema,
+      cacheKey: test.url,
     });
-    console.log(`Completed in ${Date.now() - start}ms`);
+    console.log(`Extracted in ${Date.now() - extractStart}ms`);
 
     if (result.success) {
       console.log("Data:", result.data);
@@ -119,10 +132,11 @@ async function main() {
     }
   }
 
+  await browser.close();
   scraper.close();
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error(err);
   scraper.close();
   process.exit(1);
