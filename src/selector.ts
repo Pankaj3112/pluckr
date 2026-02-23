@@ -45,3 +45,36 @@ export function runSelectors(
 
   return results
 }
+
+export type TestSelectorResult =
+  | { found: true; rawValue: string; transformedValue: unknown }
+  | { found: false; error: string }
+
+export function testSingleSelector(
+  html: string,
+  params: { selector: string; attribute?: string; transform?: string },
+): TestSelectorResult {
+  const $ = cheerio.load(html)
+  const el = $(params.selector).first()
+
+  if (el.length === 0) {
+    return { found: false, error: `No element matched selector: ${params.selector}` }
+  }
+
+  const rawValue = extractRawValue(el, params.attribute)
+  if (rawValue === null || rawValue === '') {
+    return { found: false, error: 'Element matched but extracted value is empty' }
+  }
+
+  if (!params.transform) {
+    return { found: true, rawValue, transformedValue: rawValue }
+  }
+
+  try {
+    const fn = new Function('value', `return ${params.transform}`)
+    const transformedValue = fn(rawValue)
+    return { found: true, rawValue, transformedValue }
+  } catch (err) {
+    return { found: false, error: `Transform failed: ${err instanceof Error ? err.message : String(err)}` }
+  }
+}

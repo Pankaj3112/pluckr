@@ -13,32 +13,39 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "ai": "^4",
-    "zod": "^3",
-    "playwright": "^1",
+    "ai": "^6",
+    "better-sqlite3": "^11",
     "cheerio": "^1",
-    "better-sqlite3": "^11"
+    "playwright": "^1",
+    "playwright-ghost": "^0.17.0",
+    "zod": "^3"
   },
   "peerDependencies": {
     "@ai-sdk/anthropic": "^1",
     "@ai-sdk/openai": "^1"
   },
   "peerDependenciesMeta": {
-    "@ai-sdk/anthropic": { "optional": true },
-    "@ai-sdk/openai": { "optional": true }
+    "@ai-sdk/anthropic": {
+      "optional": true
+    },
+    "@ai-sdk/openai": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/better-sqlite3": "^7",
     "@types/node": "^22",
     "tsup": "^8",
+    "typescript": "^5",
     "vitest": "^3"
   }
 }

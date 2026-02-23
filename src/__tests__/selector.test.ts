@@ -109,3 +109,64 @@ describe('runSelectors', () => {
     expect(result.stock).toBe('In Stock')
   })
 })
+
+import { testSingleSelector } from '../selector.js'
+
+describe('testSingleSelector', () => {
+  it('returns found with raw and transformed values', () => {
+    const result = testSingleSelector(HTML, {
+      selector: 'h1.product-title',
+      transform: 'value.trim()',
+    })
+    expect(result).toEqual({
+      found: true,
+      rawValue: 'Widget Pro',
+      transformedValue: 'Widget Pro',
+    })
+  })
+
+  it('returns found with attribute extraction', () => {
+    const result = testSingleSelector(HTML, {
+      selector: '.rating',
+      attribute: 'aria-label',
+      transform: 'parseFloat(value)',
+    })
+    expect(result).toEqual({
+      found: true,
+      rawValue: '4.5 out of 5',
+      transformedValue: 4.5,
+    })
+  })
+
+  it('returns not found for missing selector', () => {
+    const result = testSingleSelector(HTML, {
+      selector: '.nonexistent',
+      transform: 'value.trim()',
+    })
+    expect(result).toEqual({
+      found: false,
+      error: 'No element matched selector: .nonexistent',
+    })
+  })
+
+  it('returns error when transform fails', () => {
+    const result = testSingleSelector(HTML, {
+      selector: 'h1.product-title',
+      transform: 'value.nonExistentMethod()',
+    })
+    expect(result.found).toBe(false)
+    expect('error' in result && result.error).toContain('Transform failed')
+  })
+
+  it('returns not found when element has no text content', () => {
+    const emptyHtml = '<html><body><span class="empty"></span></body></html>'
+    const result = testSingleSelector(emptyHtml, {
+      selector: '.empty',
+      transform: 'value.trim()',
+    })
+    expect(result).toEqual({
+      found: false,
+      error: 'Element matched but extracted value is empty',
+    })
+  })
+})

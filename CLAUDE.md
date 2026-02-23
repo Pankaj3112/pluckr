@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**healscrape** is a TypeScript library for schema-first, self-healing web scraping powered by LLMs. Users define a Zod schema, the library auto-generates CSS selectors via an LLM, extracts and validates data, caches working selectors in SQLite, and automatically heals broken selectors when pages change.
+**healscrape** is a TypeScript library for schema-first, self-healing web scraping powered by LLMs. Users define a Zod schema, the library uses an agentic LLM tool loop to generate and verify CSS selectors, extracts and validates data, caches working selectors in SQLite, and automatically heals broken selectors when pages change.
 
 ## Commands
 
@@ -18,69 +18,70 @@ npx playwright install chromium              # Required for Playwright (first-ti
 
 ## Architecture
 
-The scrape pipeline flows: **fetch → clean → generate field mappings (selector + transform) → extract & transform → validate → cache (or heal)**
+The scrape pipeline flows: **fetch (stealth) → clean → tool-based LLM extraction loop → validate → cache (or return error)**
 
 ```
-Scraper.scrape(url, schema)
+Scraper.scrape(url, schema) → ScrapeResult<T>
   ├─ SelectorCache: check for cached field mappings (SQLite)
-  ├─ fetchAndClean: Playwright fetches page, cheerio strips noise
-  ├─ generateFieldMappings: LLM creates CSS selector + JS transform per field
-  ├─ runSelectors: cheerio runs selectors, applies transforms, extracts typed values
-  ├─ validate: Zod safeParse
-  ├─ Success → cache field mappings, return typed data
-  └─ Failure → fixFieldMappings (LLM) → retry → throw ExtractionFailed
-      └─ After 4+ consecutive failures → PermanentFailure (skips fetch/LLM)
+  ├─ fetchAndClean: playwright-ghost (stealth) fetches page, cheerio strips noise
+  ├─ Cache hit? → runSelectors + validate → if valid, return success
+  ├─ extractWithTools: agentic LLM loop with tools:
+  │   ├─ testSelector: AI tests individual CSS selectors against HTML
+  │   ├─ submitResult: AI submits all field mappings, system validates via Zod
+  │   └─ reportNoData: AI reports page doesn't contain requested data
+  ├─ Success → cache field mappings, return { success: true, data }
+  └─ Failure → return { success: false, error: { code, message } }
+      └─ After 4+ consecutive failures → PERMANENT_FAILURE (skips fetch/LLM)
 ```
 
 ### Key Modules (all in `src/`)
 
 | Module | Role |
 |--------|------|
-| `scraper.ts` | Main orchestration class, public API |
+| `scraper.ts` | Main orchestration class, public API, returns `ScrapeResult<T>` |
 | `cache.ts` | SQLite selector cache with failure tracking |
-| `fetcher.ts` | Playwright page fetch + cheerio HTML cleaning |
-| `selector.ts` | CSS selector execution + JS transform application |
-| `llm.ts` | Vercel AI SDK wrapper: `generateFieldMappings` / `fixFieldMappings` |
+| `fetcher.ts` | playwright-ghost stealth page fetch + cheerio HTML cleaning |
+| `selector.ts` | CSS selector execution + JS transform application + `testSingleSelector` helper |
+| `llm.ts` | Vercel AI SDK wrapper: `extractWithTools` using `generateText` + tools |
 | `validator.ts` | Zod validation wrapper with error formatting |
-| `prompts.ts` | LLM prompt templates with `FieldInfo` type (name, type, description) |
-| `types.ts` | `FieldMapping` (selector + transform) and `FieldMappings` types |
-| `exceptions.ts` | `ExtractionFailed` and `PermanentFailure` error classes |
-| `index.ts` | Public exports: `Scraper`, `ScraperConfig`, exceptions |
+| `prompts.ts` | LLM prompt templates: `EXTRACTION_SYSTEM_PROMPT`, `buildExtractionPrompt`, `buildCachedHintPrompt` |
+| `types.ts` | `FieldMapping`, `FieldMappings`, `ScrapeResult`, `ScrapeError` types |
+| `exceptions.ts` | `ExtractionFailed` and `PermanentFailure` error classes (legacy, kept for compat) |
+| `index.ts` | Public exports: `Scraper`, `ScraperConfig`, types, exceptions |
 
 ### Selector Value Extraction Logic
 
-`runSelectors` in `selector.ts` first extracts a raw string value using element-type heuristics, then applies the LLM-generated `transform` expression (via `new Function`) to produce the final typed value.
+`runSelectors` in `selector.ts` extracts a raw string value, then applies the LLM-generated `transform` expression (via `new Function`) to produce the final typed value.
 
-Raw value extraction per element type:
-- `input/textarea/select` → `value` attribute
-- `img` → `alt` attribute
-- `a` → `href` attribute
-- Elements with `aria-label` → `aria-label` attribute
-- Default → `.text().trim()`
+Raw value extraction: if `attribute` is specified, uses that attribute; otherwise extracts `.text().trim()`.
 
-After extraction, the transform expression receives the raw string as `value` and returns the correctly typed result (e.g., `parseFloat(value.replace(/[^0-9.-]/g, ''))` for numbers).
+`testSingleSelector` provides the same logic for a single field, returning structured success/error results for the LLM tool loop.
 
 ### Schema Hashing
 
-The cache key uses SHA256 of sorted field names + Zod type names (sliced to 16 chars). This is stable and avoids Zod internals.
+The cache key uses SHA256 of sorted field names + Zod type names + descriptions (sliced to 16 chars). This is stable and avoids Zod internals.
 
 ## Key Design Decisions
 
-- **Single healing attempt**: One LLM retry per scrape call to avoid token waste
+- **Tool-based extraction**: LLM uses `generateText` + tools (`testSelector`, `submitResult`, `reportNoData`) to iteratively verify selectors before committing, replacing blind `generateObject`
+- **Self-healing inside tool loop**: No separate heal step — the AI self-corrects within the same `generateText` call when `submitResult` reports validation errors
+- **Discriminated union return**: `scrape()` returns `ScrapeResult<T>` (`{ success: true, data }` | `{ success: false, error }`) instead of throwing exceptions
+- **Configurable tool calls**: `maxToolCalls` in `ScraperConfig` controls the `stopWhen` limit (default: 3)
+- **Stealth fetching**: `playwright-ghost` with `plugins.recommended()` for anti-bot evasion (passes 24+ detection tests)
 - **Permanent failure guard**: Checked at the start of `scrape()` before fetching — saves page load + LLM call after 4+ consecutive failures
 - **`LanguageModel` interface**: Accepts any Vercel AI SDK `LanguageModel` directly (Anthropic, OpenAI, Google, etc.)
 - **Cache location**: `.healscrape/cache.db` in `process.cwd()` by default, configurable via `ScraperConfig.cachePath`
-- **`FieldMappings` with transforms**: Each field mapping is `{ selector, transform }` — the LLM generates both the CSS selector and a JS transform expression, replacing reliance on Zod coercion for type conversion
+- **Cache-first with hint**: On cache hit, runs cached selectors first; if validation fails, passes them as hints to the tool loop
 - **Dual format output**: tsup builds ESM (`dist/index.js`) + CJS (`dist/index.cjs`) + TypeScript declarations
 
 ## Tech Stack
 
 - **TypeScript** (strict mode) with ES2022 target
 - **Zod** for schema validation with coercion
-- **Playwright** for browser-based page fetching
+- **playwright-ghost** for stealth browser-based page fetching
 - **cheerio** for HTML parsing and selector execution
 - **better-sqlite3** for embedded selector cache
-- **Vercel AI SDK (`ai`)** for LLM abstraction
+- **Vercel AI SDK (`ai` v6)** for LLM abstraction with tool calling (`generateText`, `tool`, `stepCountIs`)
 - **vitest** for testing (globals enabled — no imports needed for `describe`/`it`/`expect`)
 - **tsup** for bundling
 

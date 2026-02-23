@@ -61,9 +61,10 @@ export class SelectorCache {
   incrementFailures(url: string, schemaHash: string): void {
     this.db
       .prepare(
-        `UPDATE selector_cache
-         SET consecutive_failures = consecutive_failures + 1
-         WHERE url = ? AND schema_hash = ?`
+        `INSERT INTO selector_cache (url, schema_hash, selectors, consecutive_failures)
+         VALUES (?, ?, '{}', 1)
+         ON CONFLICT(url, schema_hash)
+         DO UPDATE SET consecutive_failures = consecutive_failures + 1`
       )
       .run(url, schemaHash)
   }

@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
-import { chromium } from 'playwright'
+import { chromium } from 'playwright-ghost'
+import plugins from 'playwright-ghost/plugins'
 
 const REMOVE_TAGS = ['script', 'style', 'svg', 'noscript', 'iframe']
 const HIDDEN_CLASSES = ['hidden', 'd-none', 'sr-only']
@@ -46,10 +47,31 @@ export function cleanHtml(html: string): string {
 }
 
 export async function fetchAndClean(url: string): Promise<string> {
-  const browser = await chromium.launch()
+  const browser = await chromium.launch({
+    plugins: [
+      ...plugins.recommended(),
+      plugins.polyfill.userAgent({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      }),
+    ],
+  })
   try {
-    const page = await browser.newPage()
-    await page.goto(url, { waitUntil: 'networkidle' })
+    const context = await browser.newContext({
+      locale: 'en-US',
+      extraHTTPHeaders: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+      },
+    })
+    const page = await context.newPage()
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+    await page.waitForTimeout(2000)
     const html = await page.content()
     return cleanHtml(html)
   } finally {
