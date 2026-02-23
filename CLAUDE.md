@@ -45,8 +45,7 @@ Scraper.scrape({ html, schema, cacheKey? }) → ScrapeResult<T>
 | `validator.ts` | Zod validation wrapper with error formatting |
 | `prompts.ts` | LLM prompt templates: `EXTRACTION_SYSTEM_PROMPT`, `buildExtractionPrompt`, `buildCachedHintPrompt` |
 | `types.ts` | `FieldMapping`, `FieldMappings`, `ScrapeResult`, `ScrapeError` types |
-| `exceptions.ts` | `ExtractionFailed` and `PermanentFailure` error classes (legacy, kept for compat) |
-| `index.ts` | Public exports: `Scraper`, `ScraperConfig`, `cleanHtml`, types, exceptions |
+| `index.ts` | Public exports: `Scraper`, `ScraperConfig`, `ScrapeOptions`, `cleanHtml`, types |
 
 ### Selector Value Extraction Logic
 
