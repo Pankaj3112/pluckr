@@ -12,9 +12,7 @@ function selectorsSchema(fieldNames: string[]) {
   for (const name of fieldNames) {
     shape[name] = z.string()
   }
-  return z.object({
-    selectors: z.object(shape),
-  })
+  return z.object(shape)
 }
 
 export async function generateSelectors(
@@ -26,12 +24,13 @@ export async function generateSelectors(
 
   const { object } = await generateObject({
     model,
+    temperature: 0.2,
     schema: selectorsSchema(fieldNames),
     system: GENERATE_SELECTORS_SYSTEM,
     prompt: generateSelectorsPrompt(html, fields),
   })
 
-  return object.selectors
+  return object
 }
 
 export async function fixSelectors(
@@ -45,10 +44,11 @@ export async function fixSelectors(
 
   const { object } = await generateObject({
     model,
+    temperature: 0.2,
     schema: selectorsSchema(fieldNames),
     system: FIX_SELECTORS_SYSTEM,
     prompt: fixSelectorsPrompt(html, previousSelectors, errors, rawData),
   })
 
-  return object.selectors
+  return object
 }

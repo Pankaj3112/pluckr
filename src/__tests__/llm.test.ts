@@ -26,9 +26,7 @@ beforeEach(() => {
 describe('generateSelectors', () => {
   it('calls generateObject and returns selectors', async () => {
     mockGenerateObject.mockResolvedValueOnce({
-      object: {
-        selectors: { title: 'h1', price: '.price' },
-      },
+      object: { title: 'h1', price: '.price' },
     } as any)
 
     const result = await generateSelectors(html, ['title', 'price'], fakeModel)
@@ -40,9 +38,7 @@ describe('generateSelectors', () => {
 describe('fixSelectors', () => {
   it('calls generateObject with failure context and returns fixed selectors', async () => {
     mockGenerateObject.mockResolvedValueOnce({
-      object: {
-        selectors: { title: 'h1', price: 'span.price' },
-      },
+      object: { title: 'h1', price: 'span.price' },
     } as any)
 
     const result = await fixSelectors(

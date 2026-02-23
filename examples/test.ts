@@ -4,14 +4,13 @@ import { z } from "zod";
 import { Scraper } from "../src/index.js";
 
 const scraper = new Scraper({
-  model: google("gemini-2.0-flash-lite"),
+  model: google("gemini-flash-lite-latest"),
 });
 
 const BookSchema = z.object({
   title: z.string(),
-  price: z.coerce.number().positive(),
+  price: z.string(),
   availability: z.string(),
-  rating: z.string(),
   description: z.string(),
 });
 
@@ -38,7 +37,8 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(err.message ?? err);
+  if (err.cause) console.error("Cause:", err.cause.message ?? err.cause);
   scraper.close();
   process.exit(1);
 });
