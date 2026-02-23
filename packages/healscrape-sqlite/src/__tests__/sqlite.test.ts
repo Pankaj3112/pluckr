@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { SqliteStorage } from '../cache.js'
-import type { FieldMappings } from '../types.js'
+import { SqliteStorage } from '../index.js'
+import type { FieldMappings } from 'healscrape'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'

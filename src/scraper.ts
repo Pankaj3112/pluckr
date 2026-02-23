@@ -3,9 +3,9 @@ import { type LanguageModel } from 'ai'
 import { type ZodObject, type ZodRawShape } from 'zod'
 import type { FieldMappings, ScrapeResult, Storage } from './types.js'
 import { type FieldInfo } from './prompts.js'
-import { SqliteStorage } from './cache.js'
 import { cleanHtml } from './cleaner.js'
 import { extractWithTools } from './llm.js'
+import { MemoryStorage } from './memory-storage.js'
 import { runSelectors } from './selector.js'
 import { validate } from './validator.js'
 
@@ -15,7 +15,6 @@ const DEFAULT_MAX_TOOL_CALLS_PER_FIELD = 3
 export interface ScraperConfig {
   model: LanguageModel
   storage?: Storage
-  cachePath?: string
   debug?: boolean
   maxToolCallsPerField?: number
 }
@@ -67,7 +66,7 @@ export class Scraper {
   private maxToolCallsPerField: number
 
   constructor(config: ScraperConfig) {
-    this.storage = config.storage ?? new SqliteStorage(config.cachePath)
+    this.storage = config.storage ?? new MemoryStorage()
     this.model = config.model
     this.debug = config.debug ?? false
     this.maxToolCallsPerField = config.maxToolCallsPerField ?? DEFAULT_MAX_TOOL_CALLS_PER_FIELD
@@ -80,8 +79,8 @@ export class Scraper {
     const schemaHash = computeSchemaHash(schema as unknown as ZodObject<ZodRawShape>)
     const cleanedHtml = cleanHtml(html)
 
-    // Read cache entry (only when caching is enabled)
-    const entry = cacheKey ? await this.storage.get(cacheKey, schemaHash) : null
+    // Read cache entry (only when storage and cacheKey are both provided)
+    const entry = (cacheKey) ? await this.storage.get(cacheKey, schemaHash) : null
 
     // Guard: check for permanent failure
     if (entry && entry.consecutiveFailures > MAX_CONSECUTIVE_FAILURES) {
@@ -136,7 +135,7 @@ export class Scraper {
       return { success: true, data: extractionResult.data as ReturnType<ZodObject<T>['parse']> }
     }
 
-    // Track failures for EXTRACTION_FAILED (only when caching is enabled)
+    // Track failures for EXTRACTION_FAILED (only when storage and cacheKey are provided)
     if (cacheKey && extractionResult.error.code === 'EXTRACTION_FAILED') {
       await this.storage.set(cacheKey, schemaHash, {
         fieldMappings: entry?.fieldMappings ?? {},

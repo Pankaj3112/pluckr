@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { CacheEntry, Storage } from './types.js'
+import type { CacheEntry, Storage } from 'healscrape'
 
 export class SqliteStorage implements Storage {
   private db: Database.Database
@@ -18,20 +18,20 @@ export class SqliteStorage implements Storage {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS selector_cache (
         id INTEGER PRIMARY KEY,
-        url TEXT NOT NULL,
+        key TEXT NOT NULL,
         schema_hash TEXT NOT NULL,
         selectors TEXT NOT NULL,
         consecutive_failures INTEGER DEFAULT 0,
         last_success_at TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(url, schema_hash)
+        UNIQUE(key, schema_hash)
       )
     `)
   }
 
   async get(key: string, schemaHash: string): Promise<CacheEntry | null> {
     const row = this.db
-      .prepare('SELECT selectors, consecutive_failures FROM selector_cache WHERE url = ? AND schema_hash = ?')
+      .prepare('SELECT selectors, consecutive_failures FROM selector_cache WHERE key = ? AND schema_hash = ?')
       .get(key, schemaHash) as { selectors: string; consecutive_failures: number } | undefined
 
     if (!row) return null
@@ -44,9 +44,9 @@ export class SqliteStorage implements Storage {
   async set(key: string, schemaHash: string, entry: CacheEntry): Promise<void> {
     this.db
       .prepare(
-        `INSERT INTO selector_cache (url, schema_hash, selectors, consecutive_failures, last_success_at)
+        `INSERT INTO selector_cache (key, schema_hash, selectors, consecutive_failures, last_success_at)
          VALUES (?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(url, schema_hash)
+         ON CONFLICT(key, schema_hash)
          DO UPDATE SET selectors = excluded.selectors,
                        consecutive_failures = excluded.consecutive_failures,
                        last_success_at = excluded.last_success_at`
