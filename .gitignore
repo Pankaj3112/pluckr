@@ -3,3 +3,4 @@ dist/
 .healscrape/
 *.db
 *.tsbuildinfo
+.env

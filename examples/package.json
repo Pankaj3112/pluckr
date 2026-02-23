@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ai-sdk/anthropic": "^1",
+    "@ai-sdk/google": "^1.2.22",
+    "dotenv": "^17.3.1",
+    "zod": "^3"
+  }
+}
