@@ -48,8 +48,8 @@ describe('Scraper', () => {
     })
   })
 
-  afterEach(() => {
-    scraper.close()
+  afterEach(async () => {
+    await scraper.close()
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
@@ -216,6 +216,34 @@ describe('Scraper', () => {
     // schema has 3 fields (title, price, inStock), so 5 * 3 = 15
     expect(callArgs.maxToolCalls).toBe(15)
 
-    customScraper.close()
+    await customScraper.close()
+  })
+
+  it('accepts a custom storage implementation', async () => {
+    const entries = new Map<string, any>()
+    const customStorage = {
+      get: vi.fn(async (key: string, schemaHash: string) => entries.get(`${key}:${schemaHash}`) ?? null),
+      set: vi.fn(async (key: string, schemaHash: string, entry: any) => { entries.set(`${key}:${schemaHash}`, entry) }),
+      close: vi.fn(async () => {}),
+    }
+
+    const customScraper = new Scraper({
+      model: fakeModel,
+      storage: customStorage,
+    })
+
+    mockExtract.mockResolvedValueOnce({
+      success: true,
+      data: { title: 'Widget', price: 29.99, inStock: true },
+      fieldMappings: goodMappings,
+    })
+
+    await customScraper.scrape({ html: PRODUCT_HTML, schema, cacheKey: 'my-key' })
+
+    expect(customStorage.get).toHaveBeenCalled()
+    expect(customStorage.set).toHaveBeenCalled()
+
+    await customScraper.close()
+    expect(customStorage.close).toHaveBeenCalled()
   })
 })

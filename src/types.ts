@@ -6,6 +6,17 @@ export interface FieldMapping {
 
 export type FieldMappings = Record<string, FieldMapping>
 
+export interface CacheEntry {
+  fieldMappings: FieldMappings
+  consecutiveFailures: number
+}
+
+export interface Storage {
+  get(key: string, schemaHash: string): Promise<CacheEntry | null>
+  set(key: string, schemaHash: string, entry: CacheEntry): Promise<void>
+  close(): Promise<void>
+}
+
 export interface ScrapeError {
   code: 'NO_DATA' | 'EXTRACTION_FAILED' | 'PERMANENT_FAILURE'
   message: string

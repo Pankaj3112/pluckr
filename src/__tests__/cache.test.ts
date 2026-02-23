@@ -1,81 +1,89 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { SelectorCache } from '../cache.js'
+import { SqliteStorage } from '../cache.js'
 import type { FieldMappings } from '../types.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 
-describe('SelectorCache', () => {
-  let cache: SelectorCache
+describe('SqliteStorage', () => {
+  let storage: SqliteStorage
   let tmpDir: string
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'healscrape-test-'))
-    cache = new SelectorCache(path.join(tmpDir, 'cache.db'))
+    storage = new SqliteStorage(path.join(tmpDir, 'cache.db'))
   })
 
-  afterEach(() => {
-    cache.close()
+  afterEach(async () => {
+    await storage.close()
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('returns null for cache miss', () => {
-    const result = cache.get('https://example.com', 'abc123')
+  it('returns null for cache miss', async () => {
+    const result = await storage.get('https://example.com', 'abc123')
     expect(result).toBeNull()
   })
 
-  it('stores and retrieves field mappings', () => {
+  it('stores and retrieves cache entries', async () => {
     const mappings: FieldMappings = {
       title: { selector: 'h1', transform: 'value.trim()' },
       price: { selector: '.price', transform: "parseFloat(value.replace(/[^0-9.]/g, ''))" },
     }
-    cache.set('https://example.com', 'abc123', mappings)
+    await storage.set('https://example.com', 'abc123', {
+      fieldMappings: mappings,
+      consecutiveFailures: 0,
+    })
 
-    const result = cache.get('https://example.com', 'abc123')
-    expect(result).toEqual(mappings)
+    const result = await storage.get('https://example.com', 'abc123')
+    expect(result).toEqual({ fieldMappings: mappings, consecutiveFailures: 0 })
   })
 
-  it('updates field mappings on duplicate key', () => {
+  it('updates entry on duplicate key', async () => {
     const original: FieldMappings = { title: { selector: 'h1', transform: 'value.trim()' } }
     const updated: FieldMappings = { title: { selector: 'h2.new', transform: 'value.toUpperCase()' } }
 
-    cache.set('https://example.com', 'abc123', original)
-    cache.set('https://example.com', 'abc123', updated)
+    await storage.set('https://example.com', 'abc123', { fieldMappings: original, consecutiveFailures: 0 })
+    await storage.set('https://example.com', 'abc123', { fieldMappings: updated, consecutiveFailures: 0 })
 
-    const result = cache.get('https://example.com', 'abc123')
-    expect(result).toEqual(updated)
+    const result = await storage.get('https://example.com', 'abc123')
+    expect(result?.fieldMappings).toEqual(updated)
   })
 
-  it('tracks consecutive failures', () => {
-    cache.set('https://example.com', 'abc123', {
-      title: { selector: 'h1', transform: 'value.trim()' },
+  it('stores and retrieves consecutive failures', async () => {
+    await storage.set('https://example.com', 'abc123', {
+      fieldMappings: { title: { selector: 'h1', transform: 'value.trim()' } },
+      consecutiveFailures: 0,
     })
 
-    expect(cache.getFailureCount('https://example.com', 'abc123')).toBe(0)
+    let result = await storage.get('https://example.com', 'abc123')
+    expect(result?.consecutiveFailures).toBe(0)
 
-    cache.incrementFailures('https://example.com', 'abc123')
-    cache.incrementFailures('https://example.com', 'abc123')
-    expect(cache.getFailureCount('https://example.com', 'abc123')).toBe(2)
+    await storage.set('https://example.com', 'abc123', {
+      fieldMappings: result!.fieldMappings,
+      consecutiveFailures: 2,
+    })
+    result = await storage.get('https://example.com', 'abc123')
+    expect(result?.consecutiveFailures).toBe(2)
 
-    cache.resetFailures('https://example.com', 'abc123')
-    expect(cache.getFailureCount('https://example.com', 'abc123')).toBe(0)
+    await storage.set('https://example.com', 'abc123', {
+      fieldMappings: result!.fieldMappings,
+      consecutiveFailures: 0,
+    })
+    result = await storage.get('https://example.com', 'abc123')
+    expect(result?.consecutiveFailures).toBe(0)
   })
 
-  it('returns 0 failures for unknown entries', () => {
-    expect(cache.getFailureCount('https://unknown.com', 'xyz')).toBe(0)
-  })
-
-  it('isolates entries by url and schema hash', () => {
+  it('isolates entries by key and schema hash', async () => {
     const a: FieldMappings = { title: { selector: 'h1', transform: 'value.trim()' } }
     const b: FieldMappings = { title: { selector: 'h2', transform: 'value.trim()' } }
     const c: FieldMappings = { title: { selector: 'h3', transform: 'value.trim()' } }
 
-    cache.set('https://a.com', 'hash1', a)
-    cache.set('https://b.com', 'hash1', b)
-    cache.set('https://a.com', 'hash2', c)
+    await storage.set('https://a.com', 'hash1', { fieldMappings: a, consecutiveFailures: 0 })
+    await storage.set('https://b.com', 'hash1', { fieldMappings: b, consecutiveFailures: 0 })
+    await storage.set('https://a.com', 'hash2', { fieldMappings: c, consecutiveFailures: 0 })
 
-    expect(cache.get('https://a.com', 'hash1')).toEqual(a)
-    expect(cache.get('https://b.com', 'hash1')).toEqual(b)
-    expect(cache.get('https://a.com', 'hash2')).toEqual(c)
+    expect((await storage.get('https://a.com', 'hash1'))?.fieldMappings).toEqual(a)
+    expect((await storage.get('https://b.com', 'hash1'))?.fieldMappings).toEqual(b)
+    expect((await storage.get('https://a.com', 'hash2'))?.fieldMappings).toEqual(c)
   })
 })
