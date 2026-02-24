@@ -71,18 +71,31 @@ CSS selectors extract text from HTML, so all raw values are strings. Use `z.coer
 
 ## Caching
 
-By default, Pluckr uses in-memory storage. For persistent caching, use [`@pluckr/sqlite`](https://www.npmjs.com/package/@pluckr/sqlite):
+By default, Pluckr uses in-memory storage (cache lives for the process lifetime). For persistent caching:
+
+**SQLite** — single-process, file-based ([`@pluckr/sqlite`](https://www.npmjs.com/package/@pluckr/sqlite)):
 
 ```typescript
 import { SqliteStorage } from '@pluckr/sqlite'
 
 const pluckr = new Pluckr({
-  model: anthropic('claude-haiku-4-5-20251001'),
+  model,
   storage: new SqliteStorage(),  // defaults to .pluckr/cache.db
 })
 ```
 
-You can also implement the `Storage` interface for any backend (Redis, Postgres, etc.).
+**Redis** — distributed, multi-process ([`@pluckr/redis`](https://www.npmjs.com/package/@pluckr/redis)):
+
+```typescript
+import { RedisStorage } from '@pluckr/redis'
+
+const pluckr = new Pluckr({
+  model,
+  storage: new RedisStorage({ url: 'redis://localhost:6379', ttl: 86400 }),
+})
+```
+
+You can also implement the `Storage` interface for any custom backend.
 
 ## Error Handling
 
